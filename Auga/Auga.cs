@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
@@ -114,7 +114,17 @@ namespace Auga
         public static ConfigEntry<StatBarTextPosition> EitrBarTextPosition;
         public static ConfigEntry<bool> EitrBarShowTicks;
         
+        public static ConfigEntry<bool> AdrenalineBarShow;
+        public static ConfigEntry<StatBarTextDisplayMode> AdrenalineBarTextDisplay;
+        public static ConfigEntry<StatBarTextPosition> AdrenalineBarTextPosition;
+
         public static ConfigEntry<bool> AugaChatShow;
+        public static ConfigEntry<bool> PortDiagnosticsEnabled;
+        public static ConfigEntry<bool> SettingsSkinEnabled;
+        public static ConfigEntry<bool> BuildMenuSkinEnabled;
+
+        /// <summary>The loaded Auga bundle, kept so later code can pull fonts and art that are not in AugaAssets.</summary>
+        public static AssetBundle AssetBundle;
 
         public static readonly AugaAssets Assets = new AugaAssets();
         public static readonly AugaColors Colors = new AugaColors();
@@ -147,7 +157,8 @@ namespace Auga
                     Debug.LogWarning($"Project Auga - Version {Assembly.GetExecutingAssembly().GetName().Version}");
                     Debug.LogWarning($"Valheim - Version {(global::Version.GetVersionString())}");
 
-                    if ((global::Version.CurrentVersion.m_minor == 217 && global::Version.CurrentVersion.m_patch >= 27 ) || global::Version.CurrentVersion.m_minor > 217)
+                    // Valheim 1.0 port: 1.x has m_minor 0 again, so the 0.217 test alone would reject it.
+                    if (global::Version.CurrentVersion.m_major >= 1 || (global::Version.CurrentVersion.m_minor == 217 && global::Version.CurrentVersion.m_patch >= 27 ) || global::Version.CurrentVersion.m_minor > 217)
                     {
                         Debug.LogWarning($"GAME VERSION CHECK - PASSED");
                         Debug.LogWarning($"==============================================================================");
@@ -165,7 +176,8 @@ namespace Auga
             }
 
             LoadDependencies();
-            APIManager.Patcher.Patch();
+            // Valheim 1.0 port: APIManager.dll (redirects AugaAPI calls made by other mods) isn't in the repo.
+            //APIManager.Patcher.Patch();
             LoadTranslations();
             LoadConfig();
             LoadAssets();
@@ -501,12 +513,20 @@ namespace Auga
             EitrBarTextPosition = Config.Bind("StatBars", "EitrBarTextPosition", StatBarTextPosition.Center, "Changes where the label of the eitr bar is displayed.");
             EitrBarShowTicks = Config.Bind("StatBars", "Eitr", true, "Show a faint line on the bar every 25 units");
             
+            AdrenalineBarShow = Config.Bind("StatBars", "AdrenalineBarShow", true, "If false, hides the adrenaline bar completely.");
+            AdrenalineBarTextDisplay = Config.Bind("StatBars", "AdrenalineBarTextDisplay", StatBarTextDisplayMode.JustValue, "Changes how the label of the adrenaline bar is displayed.");
+            AdrenalineBarTextPosition = Config.Bind("StatBars", "AdrenalineBarTextPosition", StatBarTextPosition.Center, "Changes where the label of the adrenaline bar is displayed.");
+
             AugaChatShow = Config.Bind("AugaChat", "Show Auga Chat. Disable to use other mods. (Requires Restart)", true, "If false, disables the Auga Chat window display");
+            BuildMenuSkinEnabled = Config.Bind("BuildMenu", "AugaBuildMenuSkin", true, "Re-skin the game's build menu in the Auga style. Off = vanilla look.");
+            SettingsSkinEnabled = Config.Bind("Settings", "AugaSettingsSkin", true, "Re-skin the game's settings screen in the Auga style. Off = vanilla look.");
+            PortDiagnosticsEnabled = Config.Bind("Debug", "PortDiagnostics", true, "Valheim 1.0 port aid: after each screen is set up, log the UI references on the vanilla components that are destroyed or unassigned.");
         }
 
         private static void LoadAssets()
         {
             var assetBundle = LoadAssetBundle("augaassets");
+            AssetBundle = assetBundle;
             Assets.AugaLogo = assetBundle.LoadAsset<GameObject>("AugaLogo");
             Assets.InventoryScreen = assetBundle.LoadAsset<GameObject>("Inventory_screen");
             Assets.Cursor = assetBundle.LoadAsset<Texture2D>("Cursor2");
@@ -648,6 +668,15 @@ namespace Auga
                     staminaBar.ShowTicks = StaminaBarShowTicks.Value;
                 }
 
+                var newAdrenalinePanel = Hud.instance.transform.Find("hudroot/AdrenalineBar");
+                if (newAdrenalinePanel != null && newAdrenalinePanel.GetComponent<AugaHealthBar>() is AugaHealthBar adrenalineBar)
+                {
+                    adrenalineBar.Hide = !AdrenalineBarShow.Value;
+                    adrenalineBar.TextDisplay = (AugaHealthBar.TextDisplayMode)Auga.AdrenalineBarTextDisplay.Value;
+                    adrenalineBar.DisplayTextPosition = (AugaHealthBar.TextPosition)Auga.AdrenalineBarTextPosition.Value;
+                    adrenalineBar.ShowTicks = false;
+                }
+
                 if (newEitrPanel != null && newEitrPanel.GetComponent<AugaHealthBar>() is AugaHealthBar eitrBar)
                 {
                     eitrBar.Hide = !EitrBarShow.Value;
@@ -669,7 +698,11 @@ namespace Auga
             {
                 var t = typeof(Player).GetField(nameof(Player.m_knownBiome),
                     BindingFlags.Instance | BindingFlags.NonPublic);
-                t.SetValue(Player.m_localPlayer,new HashSet<Heightmap.Biome>());
+                // Valheim 1.0 port: known biomes are keyed by BiomeSector name now.
+                if (t != null && Player.m_localPlayer != null)
+                {
+                    t.SetValue(Player.m_localPlayer, new HashSet<string>());
+                }
             });
         }
     }

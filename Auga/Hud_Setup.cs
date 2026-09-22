@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
@@ -26,19 +26,22 @@ namespace Auga
                 hotkeyBar = __instance.Replace("hudroot/HotKeyBar", Auga.Assets.Hud, "hudroot/HotKeyBar");
             else
                 hotkeyBar = __instance.transform.Find("hudroot/HotKeyBar");
-            
+
             hotkeyBar.gameObject.AddComponent<MovableHudElement>().Init(TextAnchor.UpperLeft, 55, -44);
 
             var newStatusEffects = __instance.Replace("hudroot/StatusEffects", Auga.Assets.Hud);
             var newTemplate = newStatusEffects.Find("StatusEffectsExt/SE_Template");
             var newExternalRoot = newStatusEffects.Find("StatusEffectsExt");
             var newInternalRoot = newStatusEffects.Find("StatusEffectsInt");
-            
+
             newInternalRoot.gameObject.AddComponent<MovableHudElement>().Init("Status Effect List",TextAnchor.UpperRight, -40, 0);
             newExternalRoot.gameObject.AddComponent<MovableHudElement>().Init("Abilities and Other Statuses",TextAnchor.UpperRight, -160, 0);
             __instance.m_statusEffectTemplate = newTemplate.RectTransform();
+            // Valheim 1.0 port: the template is only a pattern for entries other mods add through vanilla's list. Nothing
+            // hides it any more (Auga skips Hud.UpdateStatusEffects), so its placeholder row "Some really long..." showed.
+            newTemplate.gameObject.SetActive(false);
             __instance.m_statusEffectListRoot = newExternalRoot.RectTransform();
-            
+
 
             __instance.m_saveIcon = __instance.Replace("hudroot/SaveIcon", Auga.Assets.Hud).gameObject;
             __instance.m_saveIconImage = __instance.m_saveIcon.GetComponent<Image>();
@@ -55,7 +58,7 @@ namespace Auga
             __instance.m_loadingTip = loadingScreen.Find("Loading/Tip").GetComponent<TMP_Text>();
             __instance.m_sleepingProgress.GetComponent<SleepText>().m_dreamTexts = originalDreamTexts;
 
-            
+
             __instance.m_eventBar = __instance.Replace("hudroot/EventBar", Auga.Assets.Hud).gameObject;
             __instance.m_eventName = __instance.m_eventBar.GetComponentInChildren<TMP_Text>();
             __instance.m_eventBar.gameObject.AddComponent<MovableHudElement>().Init(TextAnchor.UpperCenter, 0, -90);
@@ -78,15 +81,15 @@ namespace Auga
 
 
             var originalGuardianPowerMaterial = __instance.m_gpIcon.material;
-            
+
             __instance.m_gpRoot = (RectTransform)__instance.Replace("hudroot/GuardianPower", Auga.Assets.Hud);
             __instance.m_gpName = __instance.m_gpRoot.Find("Name").GetComponent<TMP_Text>();
             __instance.m_gpIcon = __instance.m_gpRoot.Find("Icon").GetComponent<Image>();
             __instance.m_gpIcon.material = originalGuardianPowerMaterial;
             __instance.m_gpCooldown = __instance.m_gpRoot.Find("GPTimeText").GetComponent<TMP_Text>();
-            
+
             __instance.m_gpRoot.gameObject.AddComponent<MovableHudElement>().Init(TextAnchor.LowerLeft, 60, 70);
-            
+
             foreach (Transform child in __instance.m_healthPanel)
             {
                 Object.Destroy(child.gameObject);
@@ -101,6 +104,44 @@ namespace Auga
             var newHealthPanel = hudroot.gameObject.CopyOver("hudroot/HealthBar", Auga.Assets.Hud, 8);
             var newStaminaPanel = hudroot.gameObject.CopyOver("hudroot/StaminaBar", Auga.Assets.Hud, 9);
             var newEitrPanel = hudroot.gameObject.CopyOver("hudroot/EitrBar", Auga.Assets.Hud, 10);
+
+            // Valheim 1.0 port: adrenaline (trinkets). Auga's 2023 HUD has no such bar, so it is a second copy of
+            // the eitr bar in the new Adrenaline mode, tinted like the vanilla bar it replaces.
+            var newAdrenalinePanel = hudroot.gameObject.CopyOver("hudroot/EitrBar", Auga.Assets.Hud, 11);
+            if (newAdrenalinePanel != null)
+            {
+                newAdrenalinePanel.name = "AdrenalineBar";
+                var adrenalineBar = newAdrenalinePanel.GetComponent<AugaHealthBar>();
+                if (adrenalineBar != null)
+                {
+                    adrenalineBar.Mode = AugaHealthBar.ModeType.Adrenaline;
+                    adrenalineBar.ShowTicks = false;
+                    var vanillaColor = __instance.m_adrenalineBarFast != null && __instance.m_adrenalineBarFast.m_bar != null
+                        ? __instance.m_adrenalineBarFast.m_bar.GetComponent<Image>()?.color
+                        : null;
+                    var tint = vanillaColor ?? new Color(0.93f, 0.38f, 0.67f, 1f);
+                    if (adrenalineBar.FastBar != null && adrenalineBar.FastBar.m_bar != null && adrenalineBar.FastBar.m_bar.GetComponent<Image>() is Image fastImage)
+                    {
+                        fastImage.color = tint;
+                    }
+
+                    if (adrenalineBar.SlowBar != null && adrenalineBar.SlowBar.m_bar != null && adrenalineBar.SlowBar.m_bar.GetComponent<Image>() is Image slowImage)
+                    {
+                        slowImage.color = new Color(tint.r * 0.6f, tint.g * 0.6f, tint.b * 0.6f, tint.a);
+                    }
+                }
+
+                newAdrenalinePanel.gameObject.AddComponent<MovableHudElement>().Init(TextAnchor.LowerLeft, 162, 49.5f);
+                if (__instance.m_adrenalineBarRoot != null)
+                {
+                    // The vanilla panel (an untouched branch) would draw over Auga's HUD; UpdateAdrenaline is prefixed off below.
+                    var vanillaPanel = __instance.m_adrenalineAnimator != null ? __instance.m_adrenalineAnimator.gameObject : __instance.m_adrenalineBarRoot.gameObject;
+                    vanillaPanel.SetActive(false);
+                }
+
+                // AUDIT2 hud-1: Hud.AdrenalineBarFlash triggers "Flash" on this animator; the copied eitr bar carries one.
+                __instance.m_adrenalineAnimator = newAdrenalinePanel.GetComponent<Animator>();
+            }
 
             foodPanel0.gameObject.AddComponent<MovableHudElement>().Init(TextAnchor.LowerLeft, 138, 66);
             foodPanel1.gameObject.AddComponent<MovableHudElement>().Init(TextAnchor.LowerLeft, 167, 95);
@@ -119,6 +160,9 @@ namespace Auga
             __instance.m_foodBarRoot = null;
             __instance.m_foodBaseBar = null;
             __instance.m_foodText = null;
+            // AUDIT2 hud-2: the two food fields 1.0 added were left pointing at the destroyed children.
+            __instance.m_foodTime = Array.Empty<TMP_Text>();
+            __instance.m_foodIcon = null;
             __instance.m_staminaAnimator = newStaminaPanel.GetComponent<Animator>();
             __instance.m_staminaBar2Root = null;
             __instance.m_staminaBar2Fast = null;
@@ -145,17 +189,17 @@ namespace Auga
             var dummy = new GameObject("dummyBuildHud", new[] { typeof(RectTransform) });
             dummy.transform.SetParent(buildHud.transform);
             dummy.SetActive(false);
-            
+
             var augaBuildHud = Object.Instantiate(Auga.Assets.BuildHud, dummy.transform);
             var augaText = augaBuildHud.transform.Find("DividerLarge/TabContainer/Tabs/Misc").gameObject;
             var augaSelectedText = augaText.transform.Find("Selected/Text").gameObject;
-            
+
             var darken = new GameObject("Darken", new[] { typeof(RectTransform) });
             darken.transform.SetParent(__instance.m_pieceSelectionWindow.transform);
             darken.transform.SetAsFirstSibling();
 
             __instance.m_pieceSelectionWindow.transform.Replace("Darken", Auga.Assets.BuildHud);
-            
+
             var bkg2 = __instance.m_pieceSelectionWindow.transform.Replace("Bkg2",Auga.Assets.BuildHud, "Bkg2").gameObject;
             var tabBorder = __instance.m_pieceSelectionWindow.transform.Find("Categories/TabBorder").gameObject;
             tabBorder.gameObject.SetActive(false);
@@ -170,7 +214,7 @@ namespace Auga
                 var textField = child.Find("Text").GetComponent<TMP_Text>();
                 var selectedField = child.Find("Selected").gameObject;
                 var selectedTextField = selectedField.transform.Find("Text").GetComponent<TMP_Text>();
-                
+
                 var augaTextComponent = augaText.GetComponent<TMP_Text>();
                 textField.color = augaTextComponent.color;
                 textField.font = augaTextComponent.font;
@@ -189,7 +233,7 @@ namespace Auga
                 image.color = new Color(image.color.r, image.color.g, image.color.b, 0.0f);
 
             }
-            
+
             var iconMaterial = __instance.m_pieceIconPrefab.transform.Find("icon").GetComponent<Image>().material;
             Auga.Assets.BuildHudElement.transform.Find("icon").GetComponent<Image>().material = iconMaterial;
             __instance.m_pieceIconPrefab = Auga.Assets.BuildHudElement;
@@ -197,9 +241,10 @@ namespace Auga
             var pieceRoot = __instance.m_pieceSelectionWindow.transform.Find("PieceList/Root").gameObject;
             pieceRoot.RectTransform().localPosition = new Vector3(pieceRoot.RectTransform().localPosition.x+3, pieceRoot.RectTransform().localPosition.y-3, pieceRoot.RectTransform().localPosition.z);
             __instance.m_pieceListRoot = pieceRoot.RectTransform();
-            
+
             var keyHints = __instance.transform.Replace("hudroot/KeyHints", Auga.Assets.Hud);
             keyHints.gameObject.AddComponent<MovableHudElement>().Init(TextAnchor.LowerRight, -34, 62);
+            PortRadialHints(keyHints, __instance.transform.Find("hudroot/KeyHints" + PortCarryOver.DonorSuffix));
 
             var shipHud = __instance.transform.Replace("hudroot/ShipHud", Auga.Assets.Hud);
             __instance.m_shipHudRoot = shipHud.gameObject;
@@ -223,8 +268,238 @@ namespace Auga
             __instance.m_shipWindIndicatorRoot.gameObject.AddComponent<MovableHudElement>().Init(TextAnchor.MiddleCenter, 0, -418);
 
             Auga.UpdateStatBars();
+            SkinMountHud(__instance);
 
             Localization.instance.Localize(__instance.transform);
+        }
+
+        /// <summary>
+        /// AUDIT2 hud-9 (Augafied): the mount panel (Lox / Asksvin riding) was byte-identical to vanilla and the only HUD
+        /// panel that could not be moved. Auga fonts, Auga bar art, a TextBackdrop plate and a MovableHudElement.
+        /// </summary>
+        private static void SkinMountHud(Hud hud)
+        {
+            try
+            {
+                var panel = hud.m_mountPanel;
+                if (panel == null)
+                {
+                    return;
+                }
+
+                SettingsSkin.Load();
+                var barBody = hud.m_pieceHealthBar != null ? hud.m_pieceHealthBar.transform.Find("bar")?.GetComponent<Image>() : null;
+                var barBackground = hud.m_pieceHealthBar != null ? hud.m_pieceHealthBar.transform.Find("darken")?.GetComponent<Image>() : null;
+                var backdrop = hud.transform.Find("hudroot/KeyHints")?.GetComponentsInChildren<Image>(true).FirstOrDefault(i => i.sprite != null && i.sprite.name == "TextBackdrop");
+
+                foreach (var text in panel.GetComponentsInChildren<TMP_Text>(true))
+                {
+                    var isName = text == hud.m_mountNameText;
+                    SettingsSkin.SetFont(text, isName ? SettingsSkin._bold : SettingsSkin._regular);
+                    text.color = isName ? SettingsSkin.Bright : SettingsSkin.Label;
+                    if (isName)
+                    {
+                        text.fontStyle = FontStyles.UpperCase;
+                    }
+                }
+
+                foreach (var image in panel.GetComponentsInChildren<Image>(true))
+                {
+                    var spriteName = image.sprite != null ? image.sprite.name : "";
+                    if (image.name == "darken" && backdrop != null)
+                    {
+                        image.sprite = backdrop.sprite;
+                        image.type = Image.Type.Sliced;
+                        image.color = new Color(0f, 0f, 0f, 0.75f);
+                    }
+                    else if (image.name == "bar" && barBody != null && barBody.sprite != null)
+                    {
+                        var tint = image.color;
+                        image.sprite = barBody.sprite;
+                        image.type = barBody.type;
+                        image.color = spriteName.Contains("gradient") ? tint : image.color;
+                    }
+                    else if (image.name == "bkg" && barBackground != null && barBackground.sprite != null)
+                    {
+                        image.sprite = barBackground.sprite;
+                        image.type = barBackground.type;
+                        image.color = Color.white;
+                    }
+                }
+
+                if (panel.GetComponent<MovableHudElement>() == null)
+                {
+                    panel.AddComponent<MovableHudElement>().Init("MountHud", TextAnchor.LowerCenter, 0, 260);
+                }
+            }
+            catch (Exception e)
+            {
+                Debug.LogWarning("[Auga] mount hud skin failed, leaving it vanilla: " + e);
+            }
+        }
+
+        /// <summary>
+        /// AUDIT2 hud-6 / misc-1. Auga's 2023 RadialHints is a single obsolete "Look" row with no KeyHintsRadial component,
+        /// and the real one (six Interact/Drop/Drop Multiple/Back/Close rows) was stranded on the hidden vanilla donor, where
+        /// KeyHints.UpdateRadialHints never ran. Move the donor's block onto Auga's KeyHints, re-point both fields, and
+        /// re-lay it out as a vertical block like Auga's other hint groups (fonts, key chips, key-before-label).
+        /// </summary>
+        private static void PortRadialHints(Transform keyHints, Transform donorKeyHints)
+        {
+            try
+            {
+                var component = keyHints != null ? keyHints.GetComponent<KeyHints>() : null;
+                var radial = donorKeyHints != null ? donorKeyHints.Find("RadialHints") : null;
+                if (component == null || radial == null || radial.GetComponent<KeyHintsRadial>() == null)
+                {
+                    return;
+                }
+
+                var oldRadial = component.m_radialHints;
+                radial.SetParent(keyHints, false);
+                radial.gameObject.SetActive(false);
+                component.m_radialHints = radial.gameObject;
+                component.m_radialKeyHints = radial.GetComponent<KeyHintsRadial>();
+                if (oldRadial != null && oldRadial != radial.gameObject)
+                {
+                    Object.Destroy(oldRadial);
+                }
+
+                // Layout and art from the block Auga already ships next to it.
+                var template = keyHints.Find("CombatHints");
+                var templateList = template != null ? template.Find("Keyboard") : null;
+                var templateChip = templateList != null
+                    ? templateList.GetComponentsInChildren<Image>(true).FirstOrDefault(i => i.sprite != null && i.name == "Background")
+                      ?? templateList.GetComponentsInChildren<Image>(true).FirstOrDefault(i => i.sprite != null)
+                    : null;
+                var templateLabel = templateList != null ? templateList.GetComponentsInChildren<Text>(true).FirstOrDefault(t => t.name == "Label") : null;
+                SettingsSkin.Load();
+                var labelColor = templateLabel != null ? templateLabel.color : SettingsSkin.Label;
+
+                if (template != null)
+                {
+                    CopyRect((RectTransform)radial, (RectTransform)template);
+                }
+
+                foreach (var listName in new[] { "Keyboard", "Gamepad" })
+                {
+                    var list = radial.Find(listName);
+                    if (list == null)
+                    {
+                        continue;
+                    }
+
+                    var horizontal = list.GetComponent<HorizontalLayoutGroup>();
+                    if (horizontal != null)
+                    {
+                        Object.DestroyImmediate(horizontal);
+                    }
+
+                    var vertical = list.GetComponent<VerticalLayoutGroup>() ?? list.gameObject.AddComponent<VerticalLayoutGroup>();
+                    var templateVertical = templateList != null ? templateList.GetComponent<VerticalLayoutGroup>() : null;
+                    if (templateVertical != null)
+                    {
+                        vertical.padding = templateVertical.padding;
+                        vertical.spacing = templateVertical.spacing;
+                        vertical.childAlignment = templateVertical.childAlignment;
+                        vertical.childControlWidth = templateVertical.childControlWidth;
+                        vertical.childControlHeight = templateVertical.childControlHeight;
+                        vertical.childForceExpandWidth = templateVertical.childForceExpandWidth;
+                        vertical.childForceExpandHeight = templateVertical.childForceExpandHeight;
+                        vertical.reverseArrangement = templateVertical.reverseArrangement;
+                        vertical.childControlWidth = true;
+                        vertical.childForceExpandWidth = true;
+                    }
+                    else
+                    {
+                        vertical.spacing = 2f;
+                        vertical.childAlignment = TextAnchor.LowerRight;
+                        vertical.childControlWidth = true;
+                        vertical.childControlHeight = true;
+                        vertical.childForceExpandWidth = true;
+                        vertical.childForceExpandHeight = false;
+                    }
+
+                    if (templateList != null)
+                    {
+                        CopyRect((RectTransform)list, (RectTransform)templateList);
+                    }
+
+                    foreach (Transform row in list)
+                    {
+                        var element = row.GetComponent<LayoutElement>() ?? row.gameObject.AddComponent<LayoutElement>();
+                        element.minHeight = 20f;
+                        element.preferredHeight = 20f;
+                        element.flexibleHeight = 0f;
+                        element.preferredWidth = ((RectTransform)list).rect.width > 0f ? ((RectTransform)list).rect.width : 300f;
+                        ((RectTransform)row).sizeDelta = new Vector2(element.preferredWidth, 20f);
+
+                        var rowLayout = row.GetComponent<HorizontalLayoutGroup>();
+                        if (rowLayout != null)
+                        {
+                            rowLayout.padding = new RectOffset(0, 0, 0, 0);
+                            rowLayout.spacing = 4f;
+                            rowLayout.childAlignment = TextAnchor.MiddleRight;
+                            rowLayout.childControlWidth = true;
+                            rowLayout.childControlHeight = true;
+                            rowLayout.childForceExpandWidth = false;
+                            rowLayout.childForceExpandHeight = false;
+                        }
+
+                        // Auga reads "[E] Use", vanilla "Use [E]": the label goes last.
+                        var label = row.Find("Text");
+                        if (label != null)
+                        {
+                            label.SetAsLastSibling();
+                        }
+
+                        foreach (var chip in row.GetComponentsInChildren<Image>(true))
+                        {
+                            if (templateChip != null && templateChip.sprite != null)
+                            {
+                                chip.sprite = templateChip.sprite;
+                                chip.color = templateChip.color;
+                                chip.type = templateChip.type;
+                            }
+
+                            var chipLayout = chip.GetComponent<VerticalLayoutGroup>();
+                            if (chipLayout != null)
+                            {
+                                chipLayout.padding = new RectOffset(5, 5, 1, 1);
+                            }
+                        }
+
+                        foreach (var text in row.GetComponentsInChildren<TMP_Text>(true))
+                        {
+                            var isKey = text.name == "Key";
+                            SettingsSkin.SetFont(text, isKey ? SettingsSkin._bold : SettingsSkin._regular);
+                            text.enableAutoSizing = false;
+                            text.fontSize = isKey ? 13f : 16f;
+                            text.fontStyle = isKey ? FontStyles.UpperCase : FontStyles.Normal;
+                            text.textWrappingMode = TextWrappingModes.NoWrap;
+                            text.color = isKey ? SettingsSkin.Bright : labelColor;
+                            text.alignment = isKey ? TextAlignmentOptions.Center : TextAlignmentOptions.MidlineRight;
+                            text.overflowMode = TextOverflowModes.Overflow;
+                        }
+                    }
+                }
+
+                component.m_radialKeyHints.UpdateGamepadHints();
+            }
+            catch (Exception e)
+            {
+                Debug.LogWarning("[Auga] radial key hints port failed, leaving the 2023 block: " + e);
+            }
+        }
+
+        private static void CopyRect(RectTransform target, RectTransform source)
+        {
+            target.anchorMin = source.anchorMin;
+            target.anchorMax = source.anchorMax;
+            target.pivot = source.pivot;
+            target.anchoredPosition = source.anchoredPosition;
+            target.sizeDelta = source.sizeDelta;
+            target.localScale = source.localScale;
         }
 
         [HarmonyPatch(nameof(Hud.UpdateStatusEffects))]
@@ -274,6 +549,14 @@ namespace Auga
         public static bool Hud_UpdateEitr_Prefix()
         {
             return false;
+        }
+
+        // Valheim 1.0 port: Auga's AdrenalineBar (AugaHealthBar in Adrenaline mode) reads the player itself.
+        [HarmonyPatch(nameof(Hud.UpdateAdrenaline))]
+        [HarmonyPrefix]
+        public static bool Hud_UpdateAdrenaline_Prefix(Hud __instance)
+        {
+            return __instance.transform.Find("hudroot/AdrenalineBar") == null;
         }
 
         public static void SetBuildCategory(int index)
@@ -353,10 +636,10 @@ namespace Auga
                     instance.m_buildSelection.text = Localization.instance.Localize("$hud_nothingtobuild");
                     instance.m_pieceDescription.text = "";
                     instance.m_buildIcon.enabled = false;
-                    
+
                     if (instance.m_snappingIcon != null)
                         instance.m_snappingIcon.enabled = false;
-                    
+
                     for (int index = 0; index < instance.m_requirementItems.Length; ++index)
                         instance.m_requirementItems[index].SetActive(false);
                 }
@@ -368,10 +651,11 @@ namespace Auga
                     instance.m_buildIcon.enabled = true;
                     instance.m_buildIcon.sprite = piece.m_icon;
                     Sprite snappingIconForPiece = instance.GetSnappingIconForPiece(piece);
-                    if (snappingIconForPiece != null)
+                    // Valheim 1.0 port: always written, as vanilla does - otherwise the previous piece's icon stays up.
+                    if (instance.m_snappingIcon != null)
                     {
                         instance.m_snappingIcon.sprite = snappingIconForPiece;
-                        instance.m_snappingIcon.enabled = snappingIconForPiece != null && (piece.m_category == Piece.PieceCategory.Building || piece.m_groundPiece || piece.m_waterPiece);
+                        instance.m_snappingIcon.enabled = snappingIconForPiece != null && (piece.m_category == Piece.PieceCategory.BuildingWorkbench || piece.m_groundPiece || piece.m_waterPiece);
                     }
                     for (int index = 0; index < instance.m_requirementItems.Length; ++index)
                     {
@@ -379,7 +663,7 @@ namespace Auga
                         {
                             Piece.Requirement resource = piece.m_resources[index];
                             instance.m_requirementItems[index].SetActive(true);
-                            InventoryGui.SetupRequirement(instance.m_requirementItems[index].transform, resource, localPlayer, false, 0);
+                            InventoryGui.SetupRequirement(instance.m_requirementItems[index].transform, resource, localPlayer, piece.FreeBuildKey() == GlobalKeys.NoCraftCost, 0);
                         }
                         else
                             instance.m_requirementItems[index].SetActive(false);
@@ -413,7 +697,7 @@ namespace Auga
                 }
 
         }
-        
+
         [UsedImplicitly]
         public static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions)
         {
@@ -447,14 +731,14 @@ namespace Auga
             }
         }
 
-        
-        
+
+
         public static void Postfix(Hud __instance, Piece piece)
         {
             __instance.m_pieceDescription.gameObject.SetActive(!string.IsNullOrEmpty(__instance.m_pieceDescription.text));
 
             var requireItemsContainer = __instance.m_requirementItems[0].transform.parent;
-            
+
             if (requireItemsContainer == null) return;
             requireItemsContainer.gameObject.SetActive(piece != null && piece.m_resources is { Length: > 0 });
         }
@@ -490,14 +774,22 @@ namespace Auga
             {
                 __instance.m_crosshair.color = new Color(1f, 1f, 1f, 0.5f);
             }
-            AdjustText();
+            // AUDIT2 hud-3 ("everything becomes Augafied"): the styled rows were dead code - AdjustText was called with
+            // show defaulted to false, so the player saw vanilla's raw "[E] Use" markup. The vanilla text keeps being
+            // written (mods and the crosshair colour read it) but no longer renders; Auga's rows draw in its place.
+            AdjustText(true);
             return;
 
             void AdjustText(bool show = false)
             {
                 if (!show)
                     return;
-                
+
+                if (__instance.m_hoverName.enabled)
+                {
+                    __instance.m_hoverName.enabled = false;
+                }
+
                 AugaHoverText.gameObject.SetActive(__instance.m_hoverName.gameObject.activeSelf);
 
                 if (_lastHoverText != __instance.m_hoverName.text)
@@ -528,6 +820,7 @@ namespace Auga
                                     bindings[0].SetText("1");
                                     bindings[1].SetText("8");
                                     var text = lineWithRange.transform.Find("Text").GetComponent<TextMeshProUGUI>();
+                                    text.gameObject.SetActive(true);
                                     text.text = otherText;
                                     continue;
                                 }
@@ -536,7 +829,23 @@ namespace Auga
                                 {
                                     foreach (var buttonEntry in ZInput.instance.m_buttons)
                                     {
-                                        var bindingDisplay = Localization.instance.GetBoundKeyString(buttonEntry.Key);
+                                        // Valheim 1.0 port: GetBoundKeyString throws for some gamepad-only defs
+                                        // (JoyRStickLeft/Right), and hover text only ever shows keyboard/mouse names.
+                                        if (buttonEntry.Value.Source == ZInput.InputSource.Gamepad)
+                                        {
+                                            continue;
+                                        }
+
+                                        string bindingDisplay;
+                                        try
+                                        {
+                                            bindingDisplay = Localization.instance.GetBoundKeyString(buttonEntry.Key);
+                                        }
+                                        catch (System.Exception)
+                                        {
+                                            continue;
+                                        }
+
                                         if (!_cachedKeyNames.ContainsKey(bindingDisplay))
                                         {
                                             _cachedKeyNames.Add(bindingDisplay, buttonEntry.Key);
@@ -551,6 +860,8 @@ namespace Auga
                                     var binding = lineWithBinding.GetComponentInChildren<AugaBindingDisplay>();
                                     binding.SetBinding(keyName);
                                     var text = lineWithBinding.transform.Find("Text").GetComponent<TextMeshProUGUI>();
+                                    // Ships inactive in the prefab (the 2023 code never ran far enough to notice).
+                                    text.gameObject.SetActive(true);
                                     text.text = otherText;
                                     continue;
                                 }
@@ -559,6 +870,8 @@ namespace Auga
 
                         var line = Object.Instantiate(HoverTextPrefab, AugaHoverText, false);
                         line.gameObject.SetActive(true);
+                        // The template is the (now non-rendering) vanilla label; the copies must render.
+                        line.enabled = true;
                         line.text = part;
                     }
                 }
@@ -615,7 +928,7 @@ namespace Auga
         { 
             MessageHud.instance.m_messageCenterText.gameObject.SetActive(!player.InPlaceMode());
         }
-        
+
         [UsedImplicitly]
         private static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions)
         {

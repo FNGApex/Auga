@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using System.Linq;
 using System.Reflection.Emit;
 using HarmonyLib;
@@ -8,11 +8,24 @@ namespace Auga;
 [HarmonyPatch(typeof(SkillsDialog))]
 public static class SkillsDialog_Patch
 {
+    // Stacked [HarmonyPatch] attributes on one method only ever patched one target, so each gets its own prefix.
     [HarmonyPatch(nameof(SkillsDialog.Update))]
-    [HarmonyPatch(nameof(SkillsDialog.OnClose))]
-    [HarmonyPatch(nameof(SkillsDialog.SkillClicked))]
     [HarmonyPrefix]
     public static bool Update_Prefix(SkillsDialog __instance)
+    {
+        return false;
+    }
+
+    [HarmonyPatch(nameof(SkillsDialog.OnClose))]
+    [HarmonyPrefix]
+    public static bool OnClose_Prefix(SkillsDialog __instance)
+    {
+        return false;
+    }
+
+    [HarmonyPatch(nameof(SkillsDialog.SkillClicked))]
+    [HarmonyPrefix]
+    public static bool SkillClicked_Prefix(SkillsDialog __instance)
     {
         return false;
     }

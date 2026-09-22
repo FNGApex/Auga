@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using JetBrains.Annotations;
 using TMPro;
 using UnityEngine;
@@ -14,7 +14,7 @@ using Object = UnityEngine.Object;
 namespace Auga
 {
     [PublicAPI]
-    public static class API
+    public static partial class API
     {
         public static string RedText = "#CD2121";
         public static string Red = "#AD1616";
@@ -74,6 +74,37 @@ namespace Auga
 #endif
         }
 
+        // Valheim 1.0 port: everything in the 1.0 UI (and in Auga) is TextMeshPro; the legacy Font accessors above are
+        // of no use on a TMP_Text.
+        [UsedImplicitly]
+        public static TMPro.TMP_FontAsset GetRegularTmpFont()
+        {
+#if ! API
+            return Auga.AssetBundle != null ? Auga.AssetBundle.LoadAsset<TMPro.TMP_FontAsset>("SourceSansPro-Regular SDF") : null;
+#else
+            return null;
+#endif
+        }
+
+        [UsedImplicitly]
+        public static TMPro.TMP_FontAsset GetBoldTmpFont()
+        {
+#if ! API
+            return Auga.AssetBundle != null ? Auga.AssetBundle.LoadAsset<TMPro.TMP_FontAsset>("SourceSansPro-Bold SDF") : null;
+#else
+            return null;
+#endif
+        }
+
+        [UsedImplicitly]
+        public static TMPro.TMP_FontAsset GetHeaderTmpFont()
+        {
+#if ! API
+            return Auga.AssetBundle != null ? Auga.AssetBundle.LoadAsset<TMPro.TMP_FontAsset>("Norse SDF") : null;
+#else
+            return null;
+#endif
+        }
         [UsedImplicitly]
         public static Sprite GetItemBackgroundSprite()
         {
@@ -196,7 +227,9 @@ namespace Auga
             var button = Object.Instantiate(Auga.Assets.DiamondButton, parent);
             button.name = name;
 
-            var image = button.GetComponentInChildren<Image>();
+            // The root carries the diamond frame; the icon slot is the child named "Image".
+            var iconSlot = button.transform.Find("Image");
+            var image = iconSlot != null ? iconSlot.GetComponent<Image>() : button.GetComponentInChildren<Image>();
             if (icon == null)
             {
                 image.enabled = false;
@@ -594,6 +627,21 @@ namespace Auga
                 return;
             }
 
+            // Auga's text boxes are TextMeshPro; a legacy Text can only mean "the main column". (Passing it on used
+            // to bind to AddLine(object, object) and print the component's ToString() as a label.)
+            tooltipTextBox.AddLine(tooltipTextBox.Text, s, localize, overwrite);
+#endif
+        }
+
+        [UsedImplicitly]
+        public static void TooltipTextBox_AddLine(GameObject tooltipTextBoxGO, TMPro.TMP_Text t, object s, bool localize = true, bool overwrite = false)
+        {
+#if ! API
+            if (!TextBoxCheck(tooltipTextBoxGO, out var tooltipTextBox))
+            {
+                return;
+            }
+
             tooltipTextBox.AddLine(t, s, localize, overwrite);
 #endif
         }
@@ -791,7 +839,7 @@ namespace Auga
                 return null;
             }
 
-            return complexTooltip.AddTextBox(complexTooltip.UpgradeLabelsPrefab).gameObject;
+            return complexTooltip.AddTextBox(complexTooltip.UpgradeLabelsPrefab)?.gameObject;
 #else
             return null;
 #endif
@@ -806,7 +854,7 @@ namespace Auga
                 return null;
             }
 
-            return complexTooltip.AddTextBox(complexTooltip.UpgradeTwoColumnTextBoxPrefab).gameObject;
+            return complexTooltip.AddTextBox(complexTooltip.UpgradeTwoColumnTextBoxPrefab)?.gameObject;
 #else
             return null;
 #endif
@@ -821,7 +869,7 @@ namespace Auga
                 return null;
             }
 
-            return complexTooltip.AddTextBox(complexTooltip.CheckBoxTextBoxPrefab).gameObject;
+            return complexTooltip.AddTextBox(complexTooltip.CheckBoxTextBoxPrefab)?.gameObject;
 #else
             return null;
 #endif

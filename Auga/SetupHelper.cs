@@ -1,4 +1,4 @@
-﻿using UnityEngine;
+using UnityEngine;
 
 namespace Auga
 {
@@ -19,9 +19,10 @@ namespace Auga
 
             var parent = original.parent;
             var siblingIndex = original.GetSiblingIndex();
-            Object.DestroyImmediate(original.gameObject);
+            // Valheim 1.0 port: the vanilla object stays as a hidden donor for references Auga's copy lacks.
+            var donor = PortCarryOver.MakeDonor(original.gameObject);
 
-            newObject = Object.Instantiate(prefab, parent, false);
+            newObject = PortCarryOver.InstantiateFilled(prefab, parent, donor);
             newObject.transform.SetSiblingIndex(siblingIndex);
             return true;
         }
@@ -64,17 +65,34 @@ namespace Auga
                     var secondarySiblingIndex = secondaryOriginal.GetSiblingIndex();
                     var primarySiblingIndex = primaryOriginal.GetSiblingIndex();
                     
-                    Object.DestroyImmediate(secondaryOriginal.gameObject);
-                    Object.DestroyImmediate(primaryOriginal.gameObject);
+                    // Valheim 1.0 port: keep both vanilla objects as hidden donors (see PortCarryOver).
+                    var secondaryDonor = PortCarryOver.MakeDonor(secondaryOriginal.gameObject);
+                    var primaryDonor = PortCarryOver.MakeDonor(primaryOriginal.gameObject);
 
+                    var prefabWasActive = prefab.activeSelf;
+                    prefab.SetActive(false);
                     var newPrefab = Object.Instantiate(prefab, parent);
+                    prefab.SetActive(prefabWasActive);
                     var secondary = newPrefab.transform.Find(secondaryName);
                     var primary = newPrefab.transform.Find(newPrimaryName);
+                    PortCarryOver.Fill(secondary.gameObject, secondaryDonor);
+                    PortCarryOver.Fill(primary.gameObject, primaryDonor);
 
                     secondary.SetParent(parent);
                     primary.SetParent(parent);
                     secondary.SetSiblingIndex(secondarySiblingIndex);
                     primary.SetSiblingIndex(primarySiblingIndex);
+                    if (Auga.PortDiagnosticsEnabled != null && Auga.PortDiagnosticsEnabled.Value)
+                    {
+                        secondary.gameObject.AddComponent<PortDestroyTrace>();
+                        primary.gameObject.AddComponent<PortDestroyTrace>();
+                        Debug.LogWarning($"[PortDiagnostics] indirect replace frame {Time.frameCount}: secondary '{secondary.name}' parent '{secondary.parent.name}', primary '{primary.name}' parent '{primary.parent.name}', holder '{newPrefab.name}' children {newPrefab.transform.childCount}");
+                    }
+
+                    PortCarryOver.WrapInCanvas(secondary.gameObject, secondaryDonor);
+                    PortCarryOver.WrapInCanvas(primary.gameObject, primaryDonor);
+                    // The children were detached while their (inactive) holder kept them asleep; wake them now.
+                    newPrefab.SetActive(prefabWasActive);
 
                     Object.Destroy(newPrefab);
                     

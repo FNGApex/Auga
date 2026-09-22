@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection.Emit;
@@ -25,13 +25,13 @@ namespace Auga
 
                 if (instance.m_leftScrollbar == null)
                     return;
-                
+
                 if (instance.m_leftScrollRect == null)
                     return;
-                
+
                 instance.m_leftScrollbar.size = ((RectTransform)instance.m_leftScrollRect.transform).rect.height / instance.m_listRoot.rect.height;    
             }
-            
+
             [UsedImplicitly]
             public static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions)
             {
@@ -70,7 +70,7 @@ namespace Auga
             {
                 if (text == null)
                     return;
-                
+
                 instance.m_textAreaTopic.text = Localization.instance.Localize(text.m_topic);
                 instance.m_textArea.text = Localization.instance.Localize(text.m_text);
                 foreach (TextsDialog.TextInfo text1 in instance.m_texts)
@@ -81,7 +81,7 @@ namespace Auga
                     instance.StartCoroutine(instance.FocusOnCurrentLevel(instance.m_leftScrollRect, instance.m_listRoot, text.m_selected.transform as RectTransform));                    
                 }
             }
-            
+
             [UsedImplicitly]
             public static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions)
             {
@@ -128,7 +128,7 @@ namespace Auga
                     Button component3;
                     Button component4;
                     Button component5;
-                    
+
                     List<Button> buttonList = new List<Button>();
 
                     if (instance.name.StartsWith("Auga"))
@@ -140,16 +140,24 @@ namespace Auga
                         component5 = instance.m_menuDialog.Find("MenuEntries/Compendium").GetComponent<Button>();
 
                         instance.m_firstMenuButton = component3;
-                        
+
+                        // AUDIT2 menus-3: Skip Intro (during the intro) and Player list (on a server) are real entries too.
+                        if (instance.m_skipButton != null && instance.m_skipButton.gameObject.activeSelf)
+                            buttonList.Add(instance.m_skipButton);
+
                         //Settings
                         buttonList.Add(component4);
-                        
+
                         //Compendium
                         buttonList.Add(component5);
 
                         //Save
-                        if (instance.saveButton.interactable)
-                            buttonList.Add(instance.saveButton);
+                        if (instance.m_saveButton.interactable)
+                            buttonList.Add(instance.m_saveButton);
+
+                        //Player list
+                        if (instance.m_playerListButton != null && instance.m_playerListButton.gameObject.activeSelf)
+                            buttonList.Add(instance.m_playerListButton);
 
                         //Logout
                         buttonList.Add(component1);
@@ -169,29 +177,31 @@ namespace Auga
                         component4 = instance.m_menuDialog.Find("MenuEntries/Settings").GetComponent<Button>();
 
                         instance.m_firstMenuButton = component3;
-                        
-                        buttonList.Add(component3);
-                        
-                        if (instance.saveButton.interactable)
-                            buttonList.Add(instance.saveButton);
 
-                        if (instance.menuCurrentPlayersListButton.gameObject.activeSelf)
-                            buttonList.Add(instance.menuCurrentPlayersListButton);
-                        
+                        buttonList.Add(component3);
+
+                        if (instance.m_saveButton.interactable)
+                            buttonList.Add(instance.m_saveButton);
+
+                        if (instance.m_playerListButton.gameObject.activeSelf)
+                            buttonList.Add(instance.m_playerListButton);
+
                         buttonList.Add(component4);
 
                         buttonList.Add(component1);
-                        
+
                         if (component2.gameObject.activeSelf)
                             buttonList.Add(component2);
                     }
-                    
+
                     for (int index = 0; index < buttonList.Count; ++index)
                     {
                         Navigation navigation = buttonList[index].navigation with
                         {
                             selectOnUp = index <= 0 ? buttonList[buttonList.Count - 1] : (Selectable) buttonList[index - 1],
-                            selectOnDown = index >= buttonList.Count - 1 ? buttonList[0] : (Selectable) buttonList[index + 1]
+                            selectOnDown = index >= buttonList.Count - 1 ? buttonList[0] : (Selectable) buttonList[index + 1],
+                            // Unity only honours selectOnUp/Down in Explicit mode (vanilla 1.0 sets it too).
+                            mode = Navigation.Mode.Explicit
                         };
                         buttonList[index].navigation = navigation;
                     }
@@ -202,7 +212,7 @@ namespace Auga
                     Debug.LogWarning($"{e.StackTrace}");
                 }
             }
-            
+
             [UsedImplicitly]
             public static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions)
             {
@@ -247,9 +257,85 @@ namespace Auga
 
                 var parent = __instance.transform.parent;
                 var playerPrefab = __instance.CurrentPlayersPrefab;
-                var newMenu = Object.Instantiate(Auga.Assets.MenuPrefab, parent, false).GetComponent<Menu>();
+                // Valheim 1.0 port: keep the vanilla menu as a hidden donor for the buttons 1.0 added (see PortCarryOver).
+                // The vanilla Start just subscribed to the save events; only the Auga menu may react to them.
+                PlayerProfile.SavingFinished -= __instance.SaveFinished;
+                ZNet.WorldSaveFinished -= __instance.SaveFinished;
+                var donor = PortCarryOver.MakeDonor(__instance.gameObject);
+                var newMenu = PortCarryOver.InstantiateFilled(Auga.Assets.MenuPrefab, parent, donor).GetComponent<Menu>();
                 newMenu.CurrentPlayersPrefab = playerPrefab;
-                Object.Destroy(__instance.gameObject);
+                // m_skipButton was a GameObject in 2023 and is a Button now, so the bundle's value does not load.
+                var skipIntro = newMenu.transform.Find("MenuRoot/Menu/MenuEntries/SkipIntro");
+                if (skipIntro != null && skipIntro.GetComponent<Button>() != null)
+                {
+                    var skipButton = skipIntro.GetComponent<Button>();
+                    newMenu.m_skipButton = skipButton;
+                    // The prefab wires this entry to OnManualSave; switch the baked call off and skip the intro instead.
+                    for (var i = 0; i < skipButton.onClick.GetPersistentEventCount(); i++)
+                    {
+                        skipButton.onClick.SetPersistentListenerState(i, UnityEngine.Events.UnityEventCallState.Off);
+                    }
+
+                    skipButton.onClick.AddListener(newMenu.OnSkip);
+                }
+                else if (newMenu.m_skipButton == null)
+                {
+                    newMenu.m_skipButton = __instance.m_skipButton;
+                }
+
+                // AUDIT2 menus-2: m_continueButton / m_settingsButton / m_logoutButton / m_quitButton are new in 1.0 and were
+                // filled from the hidden donor, so SetButtonsEnabled (DemoMode, console) never reached Auga's entries.
+                var menuEntries = newMenu.transform.Find("MenuRoot/Menu/MenuEntries");
+                if (menuEntries != null)
+                {
+                    Button Entry(string path) => menuEntries.Find(path)?.GetComponent<Button>();
+                    newMenu.m_continueButton = Entry("DividerMedium/CloseButton") ?? newMenu.m_continueButton;
+                    newMenu.m_settingsButton = Entry("Settings") ?? newMenu.m_settingsButton;
+                    newMenu.m_logoutButton = Entry("Logout") ?? newMenu.m_logoutButton;
+                    newMenu.m_quitButton = Entry("Exit") ?? newMenu.m_quitButton;
+                }
+
+                // The cloud-storage warnings only exist in vanilla; move them out of the hidden donor so they can show.
+                foreach (var warning in new[] { newMenu.m_cloudStorageWarning, newMenu.m_cloudStorageWarningNextSave })
+                {
+                    if (warning != null && warning.transform.IsChildOf(donor.transform))
+                    {
+                        warning.transform.SetParent(newMenu.transform, false);
+                        // Their OK buttons are baked to call the *donor's* Menu, whose callback list is empty - the quit /
+                        // log out / save they gate was silently dropped. Point them at the live menu.
+                        var isNextSave = warning == newMenu.m_cloudStorageWarningNextSave;
+                        foreach (var ok in warning.GetComponentsInChildren<Button>(true))
+                        {
+                            var rebound = false;
+                            for (var i = 0; i < ok.onClick.GetPersistentEventCount(); i++)
+                            {
+                                if (ok.onClick.GetPersistentTarget(i) == __instance)
+                                {
+                                    ok.onClick.SetPersistentListenerState(i, UnityEngine.Events.UnityEventCallState.Off);
+                                    rebound = true;
+                                }
+                            }
+
+                            if (rebound)
+                            {
+                                if (isNextSave)
+                                {
+                                    ok.onClick.AddListener(newMenu.OnCloudStorageLowNextSaveWarningOk);
+                                }
+                                else
+                                {
+                                    ok.onClick.AddListener(newMenu.OnCloudStorageFullWarningOk);
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // New in 1.0 and a plain struct, so the reference carry-over does not see it.
+                newMenu.m_startScene = __instance.m_startScene;
+
+                // Auga's Menu still names AugaSettings, which is built for the pre-1.0 Settings class. Vanilla settings stay.
+                newMenu.m_settingsPrefab = __instance.m_settingsPrefab;
             }
         }
 

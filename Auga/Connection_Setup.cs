@@ -1,4 +1,4 @@
-﻿using HarmonyLib;
+using HarmonyLib;
 using JetBrains.Annotations;
 using UnityEngine;
 
@@ -10,14 +10,16 @@ namespace Auga
         [UsedImplicitly]
         public static void Postfix(ZNet __instance)
         {
-            var parent = __instance.m_passwordDialog.parent;
-            Object.Destroy(__instance.m_passwordDialog.gameObject);
-            var newPasswordDialog = Object.Instantiate(Auga.Assets.PasswordDialog, parent, false);
+            // Valheim 1.0 port: hidden donors instead of destroyed objects (see PortCarryOver), each dialog under its own parent.
+            var passwordParent = __instance.m_passwordDialog.parent;
+            var passwordDonor = PortCarryOver.MakeDonor(__instance.m_passwordDialog.gameObject);
+            var newPasswordDialog = PortCarryOver.InstantiateFilled(Auga.Assets.PasswordDialog, passwordParent, passwordDonor);
             newPasswordDialog.gameObject.SetActive(false);
             __instance.m_passwordDialog = newPasswordDialog.GetComponent<RectTransform>();
 
-            Object.Destroy(__instance.m_connectingDialog.gameObject);
-            var newConnectingDialog = Object.Instantiate(Auga.Assets.ConnectingDialog, parent, false);
+            var connectingParent = __instance.m_connectingDialog.parent;
+            var connectingDonor = PortCarryOver.MakeDonor(__instance.m_connectingDialog.gameObject);
+            var newConnectingDialog = PortCarryOver.InstantiateFilled(Auga.Assets.ConnectingDialog, connectingParent, connectingDonor);
             newConnectingDialog.gameObject.SetActive(false);
             __instance.m_connectingDialog = newConnectingDialog.GetComponent<RectTransform>();
         }

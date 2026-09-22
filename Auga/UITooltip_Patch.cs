@@ -1,9 +1,30 @@
-﻿using AugaUnity;
+using AugaUnity;
 using HarmonyLib;
 using UnityEngine;
 
 namespace Auga
 {
+    [HarmonyPatch(typeof(UITooltip), nameof(UITooltip.OnHoverStart))]
+    public static class UITooltip_OnHoverStart_Patch
+    {
+        // Valheim 1.0 port: vanilla now keeps the tooltip object alive between hovers. Auga uses two different
+        // tooltip prefabs (item-style ComplexTooltip and the simple one), so a leftover of the other kind is dropped.
+        public static void Prefix(UITooltip __instance)
+        {
+            if (UITooltip.m_tooltip == null || __instance.m_tooltipPrefab == null)
+            {
+                return;
+            }
+
+            var liveIsComplex = UITooltip.m_tooltip.GetComponent<ComplexTooltip>() != null;
+            var wantedIsComplex = __instance.m_tooltipPrefab.GetComponent<ComplexTooltip>() != null;
+            if (liveIsComplex != wantedIsComplex)
+            {
+                UITooltip.HideTooltip();
+            }
+        }
+    }
+
     [HarmonyPatch(typeof(UITooltip), nameof(UITooltip.UpdateTextElements))]
     public static class UITooltip_UpdateTextElements_Patch
     {
@@ -43,6 +64,8 @@ namespace Auga
                     }
 
                     customTooltip.SetDefault(__instance);
+                    // Vanilla's text pass would write into the ComplexTooltip's templates.
+                    return false;
                 }
             }
 

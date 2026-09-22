@@ -1,4 +1,4 @@
-﻿using System.Linq;
+using System.Linq;
 using HarmonyLib;
 using UnityEngine;
 
@@ -18,7 +18,7 @@ namespace Auga
 
         [HarmonyPatch(typeof(DamageText), nameof(DamageText.AddInworldText))]
         [HarmonyPostfix]
-        public static void AddInworldText_Postfix(DamageText __instance, DamageText.TextType type, float dmg, bool mySelf)
+        public static void AddInworldText_Postfix(DamageText __instance, DamageText.TextType type, string text, bool mySelf)
         {
             var worldTextInstance = __instance.m_worldTexts.LastOrDefault();
             if (worldTextInstance == null)
@@ -31,9 +31,10 @@ namespace Auga
             {
                 color = Auga.Colors.Healing;
             }
-            else if (mySelf)
+            else if (mySelf && type <= DamageText.TextType.Immune)
             {
-                color = dmg != 0.0f ? Auga.Colors.PlayerDamage : Auga.Colors.PlayerNoDamage;
+                // Valheim 1.0: the amount arrives as text; vanilla tests it against "0" the same way.
+                color = text != "0" ? Auga.Colors.PlayerDamage : Auga.Colors.PlayerNoDamage;
             }
             else
             {
@@ -55,7 +56,8 @@ namespace Auga
                         color = Auga.Colors.TooHard;
                         break;
                     default:
-                        color = Color.white;
+                        // Valheim 1.0 types Auga has no colour for (Bonus, Blocked...): keep what vanilla just set.
+                        color = worldTextInstance.m_textField.color;
                         break;
                 }
             }
