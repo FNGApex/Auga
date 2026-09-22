@@ -1,0 +1,53 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Valheim 1.0 port: the old Auga.csproj 'API|AnyCPU' configuration as its own project. Same sources as the plugin's
+       API (API.cs + API.Common.cs) compiled with API defined, so every body is a stub; API.Redirect.cs forwards the
+       calls to the real Auga at runtime. Output: Auga\bin\API\AugaAPI.dll - what other mods reference and ILRepack. -->
+  <PropertyGroup>
+    <TargetFramework>net48</TargetFramework>
+    <LangVersion>10</LangVersion>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <CopyLocalLockFileAssemblies>false</CopyLocalLockFileAssemblies>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <DebugType>portable</DebugType>
+    <NoStdLib>true</NoStdLib>
+    <DisableImplicitFrameworkReferences>true</DisableImplicitFrameworkReferences>
+    <AssemblyName>AugaAPI</AssemblyName>
+    <RootNamespace>Auga</RootNamespace>
+    <DefineConstants>$(DefineConstants);API</DefineConstants>
+    <OutputPath>..\Auga\bin\API\</OutputPath>
+    <NoWarn>$(NoWarn);CS0618;CS0649;CS0414;CS0169;MSB3277</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="..\Auga\API.cs" Link="API.cs" />
+    <Compile Include="..\Auga\API.Common.cs" Link="API.Common.cs" />
+    <Compile Include="..\Auga\API.Redirect.cs" Link="API.Redirect.cs" />
+    <Compile Include="..\Auga\Properties\AssemblyInfo.cs" Link="Properties\AssemblyInfo.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="mscorlib" HintPath="$(ManagedDir)\mscorlib.dll" Private="false" />
+    <Reference Include="netstandard" HintPath="$(ManagedDir)\netstandard.dll" Private="false" />
+    <Reference Include="System" HintPath="$(ManagedDir)\System.dll" Private="false" />
+    <Reference Include="System.Core" HintPath="$(ManagedDir)\System.Core.dll" Private="false" />
+    <Reference Include="assembly_valheim" HintPath="$(ManagedDir)\assembly_valheim.dll" Private="false" />
+    <Reference Include="assembly_utils" HintPath="$(ManagedDir)\assembly_utils.dll" Private="false" />
+    <Reference Include="assembly_guiutils" HintPath="$(ManagedDir)\assembly_guiutils.dll" Private="false" />
+    <Reference Include="gui_framework" HintPath="$(ManagedDir)\gui_framework.dll" Private="false" />
+    <Reference Include="Splatform" HintPath="$(ManagedDir)\Splatform.dll" Private="false" />
+    <Reference Include="SoftReferenceableAssets" HintPath="$(ManagedDir)\SoftReferenceableAssets.dll" Private="false" />
+    <Reference Include="Unity.TextMeshPro" HintPath="$(ManagedDir)\Unity.TextMeshPro.dll" Private="false" />
+    <Reference Include="UnityEngine" HintPath="$(ManagedDir)\UnityEngine.dll" Private="false" />
+    <Reference Include="UnityEngine.CoreModule" HintPath="$(ManagedDir)\UnityEngine.CoreModule.dll" Private="false" />
+    <Reference Include="UnityEngine.TextRenderingModule" HintPath="$(ManagedDir)\UnityEngine.TextRenderingModule.dll" Private="false" />
+    <Reference Include="UnityEngine.UI" HintPath="$(ManagedDir)\UnityEngine.UI.dll" Private="false" />
+    <Reference Include="UnityEngine.UIModule" HintPath="$(ManagedDir)\UnityEngine.UIModule.dll" Private="false" />
+    <Reference Include="UnityEngine.AnimationModule" HintPath="$(ManagedDir)\UnityEngine.AnimationModule.dll" Private="false" />
+    <Reference Include="0Harmony" HintPath="$(BepInExCore)\0Harmony.dll" Private="false" />
+  </ItemGroup>
+
+</Project>

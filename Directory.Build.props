@@ -1,0 +1,8 @@
+<Project>
+  <!-- Valheim 1.0 port: one place for machine paths. Override with -p:ValheimDir=... or an env var. -->
+  <PropertyGroup>
+    <ValheimDir Condition="'$(ValheimDir)' == ''">D:\SteamLibrary\steamapps\common\Valheim</ValheimDir>
+    <ManagedDir>$(ValheimDir)\valheim_Data\Managed</ManagedDir>
+    <BepInExCore>$(ValheimDir)\BepInEx\core</BepInExCore>
+  </PropertyGroup>
+</Project>

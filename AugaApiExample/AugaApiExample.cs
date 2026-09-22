@@ -1,5 +1,6 @@
-﻿using System.Reflection;
-using JetBrains.Annotations;
+using System.Reflection;
+using BepInEx;
+using HarmonyLib;
 
 namespace AugaApiExample
 {
@@ -11,13 +12,11 @@ namespace AugaApiExample
 
         private Harmony _harmony;
 
-        [UsedImplicitly]
         public void Awake()
         {
             _harmony = Harmony.CreateAndPatchAll(Assembly.GetExecutingAssembly(), PluginID);
         }
 
-        [UsedImplicitly]
         public void OnDestroy()
         {
             _harmony.UnpatchSelf();
