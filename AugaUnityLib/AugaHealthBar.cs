@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 using UnityEngine.UI;
@@ -8,7 +8,10 @@ namespace AugaUnity
     [ExecuteInEditMode]
     public class AugaHealthBar : MonoBehaviour
     {
-        public enum ModeType { Health, Stamina, Eitr };
+        public enum ModeType { Health, Stamina, Eitr, Adrenaline };
+
+        /// <summary>Test hook: when >= 0 the adrenaline bar shows this value out of 100 instead of the player's.</summary>
+        public static float DebugAdrenalineOverride = -1f;
         public enum TextPosition { Off = -1, Above, Below, Center, Start, End };
         public enum TextDisplayMode { JustValue, ValueAndMax, ValueMaxPercent, JustPercent }
 
@@ -75,11 +78,19 @@ namespace AugaUnity
                             MaxValue = player.GetMaxEitr();
                             MaxPotentialValue = GetMaxPotentialEitr(player);
                             break;
+
+                        // Valheim 1.0: adrenaline comes from equipment (trinkets), has no food component, and the
+                        // vanilla bar is only on screen while there is some.
+                        case ModeType.Adrenaline:
+                            CurrentValue = DebugAdrenalineOverride >= 0f ? DebugAdrenalineOverride : player.GetAdrenaline();
+                            MaxValue = DebugAdrenalineOverride >= 0f ? 100f : player.GetMaxAdrenaline();
+                            MaxPotentialValue = Mathf.Max(1f, MaxValue);
+                            break;
                     }
                 }
             }
 
-            var barIsVisible = !Hide && MaxValue > 0;
+            var barIsVisible = !Hide && MaxValue > 0 && (Mode != ModeType.Adrenaline || CurrentValue > 0f);
             Background.gameObject.SetActive(barIsVisible);
             BackgroundPotential.gameObject.SetActive(barIsVisible);
             TickContainer.gameObject.SetActive(ShowTicks && barIsVisible);

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using JetBrains.Annotations;
 using UnityEngine;
 using UnityEngine.UI;
@@ -108,7 +108,9 @@ namespace AugaUnity
             _foodTooltip.Food = food;
             
             var percent = food.m_time / food.m_item.m_shared.m_foodBurnTime;
-            var secondsRemaining = Mathf.CeilToInt(food.m_time);
+            // Valheim 1.0: food timers tick in world-modifier scaled units; vanilla shows m_time / Game.m_foodRate.
+            var foodRate = Game.m_foodRate > 0f ? Game.m_foodRate : 1f;
+            var secondsRemaining = Mathf.CeilToInt(food.m_time / foodRate);
 
             if (NameText != null)
             {
@@ -116,7 +118,7 @@ namespace AugaUnity
             }
 
             var timeDisplay = TimeSpan.FromSeconds(secondsRemaining).ToString(TimeFormat);
-            var totalTimeDisplay = TimeSpan.FromSeconds(Mathf.CeilToInt(food.m_item.m_shared.m_foodBurnTime)).ToString(TimeFormat);
+            var totalTimeDisplay = TimeSpan.FromSeconds(Mathf.CeilToInt(food.m_item.m_shared.m_foodBurnTime / foodRate)).ToString(TimeFormat);
             if (TimeRemainingText != null)
             {
                 TimeRemainingText.text = $"<color={_hightlightColor}>{timeDisplay}</color> / {totalTimeDisplay}";

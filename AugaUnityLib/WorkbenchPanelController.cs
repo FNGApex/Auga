@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -118,6 +118,11 @@ namespace AugaUnity
         private void AddTab(AugaTabController controller, TMP_Text titlePrefab, Transform titleContainer, Transform tabButtonContainer, string tabID, Sprite tabIcon, string tabLabel, Action<int> onTabSelected, bool mimicVanillaDescription, out TMP_Text tabTitle, out TabButton tabButton, GameObject content)
         {
             tabTitle = Instantiate(titlePrefab, titleContainer, true);
+            // The title prefab is the player panel's own title, which carries PlayerNameText and would overwrite every
+            // mod tab's label with the character name.
+            var playerName = tabTitle.GetComponent<PlayerNameText>();
+            if (playerName != null)
+                DestroyImmediate(playerName);
             tabTitle.text = Localization.instance.Localize(tabLabel);
 
             tabButton = Instantiate(TabButtonBasePrefab, tabButtonContainer);
@@ -144,7 +149,7 @@ namespace AugaUnity
                     if (mimic != null)
                         mimic.enabled = mimicVanilla;
 
-                    onTabSelected(index);
+                    onTabSelected?.Invoke(index);
                 }
             };
         }

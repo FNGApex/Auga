@@ -1,4 +1,4 @@
-﻿using UnityEngine;
+using UnityEngine;
 using UnityEngine.UI;
 
 namespace AugaUnity
@@ -24,7 +24,7 @@ namespace AugaUnity
             Inactive.SetActive(!canTogglePvp);
             Enabled.SetActive(canTogglePvp && player.m_pvp);
             Disabled.SetActive(canTogglePvp && !player.m_pvp);
-            if (Inactive.activeSelf)
+            if (Inactive.activeSelf && PleaseWaitText != null)
             {
                 PleaseWaitText.text = $"{Localization.instance.Localize("$pvp_wait_text")}: {10 - player.m_lastCombatTimer:0}";
             }

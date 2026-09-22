@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -179,6 +179,13 @@ namespace AugaUnity
             }
 
             container.gameObject.SetActive(true);
+            if (prefab == null)
+            {
+                // The hover tooltip prefab has no upgrade-label / upgrade-two-column / checkbox boxes (the crafting one does).
+                Debug.LogWarning($"[Auga] {name}: this tooltip has no such text box prefab.");
+                return null;
+            }
+
             var textBox = Instantiate(prefab, container, false);
             textBox.gameObject.SetActive(true);
             _textBoxes.Add(textBox.gameObject);
@@ -712,11 +719,13 @@ namespace AugaUnity
 
             const string subValueColor = "#706457";
             var healingText = $"+{item.m_shared.m_foodRegen:0.#}<color={subValueColor}> $healing_tick</color>";
-            var durationText = TimeSpan.FromSeconds(Mathf.CeilToInt(item.m_shared.m_foodBurnTime)).ToString(PlayerPanelFoodController.TimeFormat);
+            // Valheim 1.0: shown food times are m_time / Game.m_foodRate (world modifier).
+            var foodRate = Game.m_foodRate > 0f ? Game.m_foodRate : 1f;
+            var durationText = TimeSpan.FromSeconds(Mathf.CeilToInt(item.m_shared.m_foodBurnTime / foodRate)).ToString(PlayerPanelFoodController.TimeFormat);
 
             if (Player.m_localPlayer != null && Player.m_localPlayer.m_foods.Find(x => x.m_item.m_shared.m_name == item.m_shared.m_name) is Player.Food food)
             {
-                var currentTime = TimeSpan.FromSeconds(Mathf.CeilToInt(food.m_time)).ToString(PlayerPanelFoodController.TimeFormat);
+                var currentTime = TimeSpan.FromSeconds(Mathf.CeilToInt(food.m_time / foodRate)).ToString(PlayerPanelFoodController.TimeFormat);
                 var percent = food.m_health / food.m_item.m_shared.m_food;
                 textBox.AddLine("$item_food_health", $"<color=#FF8080>{item.m_shared.m_food:0} ({food.m_health:0})</color>");
                 textBox.AddLine("$item_food_stamina", $"<color=#FFFF80>{item.m_shared.m_foodStamina:0} ({food.m_stamina:0})</color>");

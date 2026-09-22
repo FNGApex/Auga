@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using TMPro;
@@ -150,7 +150,7 @@ namespace AugaUnity
 
         public virtual void Update()
         {
-            if (Input.GetKeyDown(KeyCode.Escape) || ZInput.GetButtonDown("JoyMenu"))
+            if (ZInput.GetKeyDown(KeyCode.Escape) || ZInput.GetButtonDown("JoyMenu"))
             {
                 HideCompendium();
             }

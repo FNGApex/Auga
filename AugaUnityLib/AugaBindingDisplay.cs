@@ -33,19 +33,19 @@ namespace AugaUnity
                 return;
             }
 
-            var keycode = ZInput.instance.m_buttons[keyName].m_key;
+            // Valheim 1.0: buttons are Input System actions. The bound control is the last part of a path
+            // such as "<Mouse>/leftButton" or "<Keyboard>/numpadPlus" instead of a legacy KeyCode.
+            var control = GetBoundControl(ZInput.instance.m_buttons[keyName]);
             var localizedKeyString = Localization.instance.GetBoundKeyString(keyName);
 
             var showMouse = -1;
-            switch (keycode)
+            switch (control)
             {
-                case KeyCode.Mouse0: showMouse = 0; break;
-                case KeyCode.Mouse1: showMouse = 1; break;
-                case KeyCode.Mouse2: showMouse = 2; break;
-                case KeyCode.Mouse3: showMouse = 3; break;
-                case KeyCode.Mouse4: showMouse = 4; break;
-                case KeyCode.Mouse5: showMouse = 5; break;
-                case KeyCode.Mouse6: showMouse = 6; break;
+                case "leftButton": showMouse = 0; break;
+                case "rightButton": showMouse = 1; break;
+                case "middleButton": showMouse = 2; break;
+                case "backButton": showMouse = 3; break;
+                case "forwardButton": showMouse = 4; break;
             }
 
             switch (localizedKeyString)
@@ -63,27 +63,46 @@ namespace AugaUnity
                 localizedKeyString = localizedKeyString.Replace("Alpha", "");
             }
 
-            switch (keycode)
+            switch (control)
             {
-                case KeyCode.KeypadDivide: localizedKeyString = localizedKeyString.Replace("Divide", "/"); break;
-                case KeyCode.KeypadMinus: localizedKeyString = localizedKeyString.Replace("Minus", "-"); break;
-                case KeyCode.KeypadMultiply: localizedKeyString = localizedKeyString.Replace("Multiply", "*"); break;
-                case KeyCode.KeypadEquals: localizedKeyString = localizedKeyString.Replace("Equals", "="); break;
-                case KeyCode.KeypadPeriod: localizedKeyString = localizedKeyString.Replace("Period", "."); break;
-                case KeyCode.KeypadPlus: localizedKeyString = localizedKeyString.Replace("Plus", "+"); break;
+                case "numpadDivide": localizedKeyString = localizedKeyString.Replace("Divide", "/"); break;
+                case "numpadMinus": localizedKeyString = localizedKeyString.Replace("Minus", "-"); break;
+                case "numpadMultiply": localizedKeyString = localizedKeyString.Replace("Multiply", "*"); break;
+                case "numpadEquals": localizedKeyString = localizedKeyString.Replace("Equals", "="); break;
+                case "numpadPeriod": localizedKeyString = localizedKeyString.Replace("Period", "."); break;
+                case "numpadPlus": localizedKeyString = localizedKeyString.Replace("Plus", "+"); break;
 
-                case KeyCode.LeftArrow: localizedKeyString = "←"; break;
-                case KeyCode.RightArrow: localizedKeyString = "→"; break;
-                case KeyCode.UpArrow: localizedKeyString = "↑"; break;
-                case KeyCode.DownArrow: localizedKeyString = "↓"; break;
-            }
-
-            if (char.IsPunctuation((char)keycode))
-            {
-                localizedKeyString = ((char)keycode).ToString();
+                case "leftArrow": localizedKeyString = "←"; break;
+                case "rightArrow": localizedKeyString = "→"; break;
+                case "upArrow": localizedKeyString = "↑"; break;
+                case "downArrow": localizedKeyString = "↓"; break;
             }
 
             SetText(localizedKeyString, showMouse);
+        }
+
+        /// <summary>Last segment of the first keyboard/mouse binding path, e.g. "leftButton"; "" when unbound.</summary>
+        private static string GetBoundControl(ZInput.ButtonDef button)
+        {
+            var action = button?.ButtonAction;
+            if (action == null)
+            {
+                return "";
+            }
+
+            foreach (var binding in action.bindings)
+            {
+                var path = binding.effectivePath;
+                if (string.IsNullOrEmpty(path) || !(path.StartsWith("<Mouse>") || path.StartsWith("<Keyboard>")))
+                {
+                    continue;
+                }
+
+                var slash = path.LastIndexOf('/');
+                return slash >= 0 ? path.Substring(slash + 1) : path;
+            }
+
+            return "";
         }
 
         public void SetText(string localizedKeyString, int showMouse = -1)

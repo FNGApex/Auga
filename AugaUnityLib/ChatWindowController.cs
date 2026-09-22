@@ -1,4 +1,4 @@
-﻿using TMPro;
+using TMPro;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
@@ -20,8 +20,8 @@ namespace AugaUnity
 
         private void Update()
         {
-            if (Input.GetKeyDown(KeyCode.Mouse0) || Input.GetKey(KeyCode.Mouse1) ||
-                Input.GetKeyDown(KeyCode.Escape) || ZInput.GetButtonDown("JoyButtonB") ||
+            if (ZInput.GetMouseButtonDown(0) || ZInput.GetMouseButton(1) ||
+                ZInput.GetKeyDown(KeyCode.Escape) || ZInput.GetButtonDown("JoyButtonB") ||
                 ZInput.GetButtonDown("JoyLStickLeft") || ZInput.GetButtonDown("JoyLStickRight") ||
                 ZInput.GetButtonDown("JoyLStickUp") || ZInput.GetButtonDown("JoyLStickDown"))
             {
@@ -41,7 +41,7 @@ namespace AugaUnity
                 } else if (_chatHandler.m_wasFocused)
                 {
                     _chatHandler.m_hideTimer = 0.0f;
-                    _lastPosition += ZInput.GetAxis("Mouse ScrollWheel");
+                    _lastPosition += ZInput.GetMouseScrollWheel();
                     _lastPosition = Mathf.Clamp(_lastPosition, 0.0f, ChatScrollbar.size);
                 }
             }
