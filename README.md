@@ -1,7 +1,7 @@
 ﻿# Project Auga
 ##### by RandyKnapp / n4
 ##### Port and Update by FNGApex and Claude, I have a SWE Job, I have a CS Degree, I don't have time to manualy port hunderds of screen but I can make AI do it.
-##### I am not the Voulenteer from the Discord, if you found this lurking feel free to spread the news, I have not posted this on any channels and do not intent to untill it's PR ready, do not trust people posting this pretending to be me. My github is linked to my discord profile and is visible.
+##### I am not the Voulenteer from the Discord, if you found this lurking feel free to try it out, I have not posted this on any channels and do not intent to until it's PR ready, do not trust people posting this pretending to be me. My GitHub is linked to my discord profile and is visible.
 > ## WORK IN PROGRESS: Valheim 1.0 migration - broken, do not use for play
 >
 > This fork is an **in-progress migration of Project Auga to Valheim 1.0 ("Deep North", Unity 6)**.
