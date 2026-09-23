@@ -5,6 +5,7 @@ using System.Reflection.Emit;
 using AugaUnity;
 using HarmonyLib;
 using JetBrains.Annotations;
+using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 using Object = UnityEngine.Object;
@@ -159,6 +160,11 @@ namespace Auga
                         if (instance.m_playerListButton != null && instance.m_playerListButton.gameObject.activeSelf)
                             buttonList.Add(instance.m_playerListButton);
 
+                        // Valheim 1.0 port (pause-texts-7): Invite Friends, when SetButtonsEnabled shows it.
+                        if (instance.m_inviteButton != null && instance.m_inviteButton.gameObject.activeSelf
+                            && instance.m_inviteButton.transform.IsChildOf(instance.transform))
+                            buttonList.Add(instance.m_inviteButton);
+
                         //Logout
                         buttonList.Add(component1);
 
@@ -293,7 +299,11 @@ namespace Auga
                     newMenu.m_settingsButton = Entry("Settings") ?? newMenu.m_settingsButton;
                     newMenu.m_logoutButton = Entry("Logout") ?? newMenu.m_logoutButton;
                     newMenu.m_quitButton = Entry("Exit") ?? newMenu.m_quitButton;
+
+                    SetupInviteButton(newMenu, menuEntries);
                 }
+
+                SetupBackdrop(newMenu);
 
                 // The cloud-storage warnings only exist in vanilla; move them out of the hidden donor so they can show.
                 foreach (var warning in new[] { newMenu.m_cloudStorageWarning, newMenu.m_cloudStorageWarningNextSave })
@@ -336,6 +346,120 @@ namespace Auga
 
                 // Auga's Menu still names AugaSettings, which is built for the pre-1.0 Settings class. Vanilla settings stay.
                 newMenu.m_settingsPrefab = __instance.m_settingsPrefab;
+            }
+
+            /// <summary>
+            /// Valheim 1.0 port (pause-texts-7): 1.0 added an Invite Friends entry (Menu.InviteFriends, shown by
+            /// SetButtonsEnabled only to a hosting player whose platform can invite). AugaMenu has no such entry, so
+            /// m_inviteButton pointed into the hidden donor. Clone Auga's own Settings entry, label it with the vanilla
+            /// text and wire it to the vanilla handler; AugaInviteRowLayout makes room for it when it is shown.
+            /// </summary>
+            private static void SetupInviteButton(Menu menu, Transform menuEntries)
+            {
+                var template = menuEntries.Find("Settings") as RectTransform;
+                var playerList = menuEntries.Find("CurrentPlayerList") as RectTransform;
+                var compendium = menuEntries.Find("Compendium") as RectTransform;
+                if (template == null || playerList == null || compendium == null || menuEntries.Find("InviteFriends") != null)
+                {
+                    return;
+                }
+
+                // The vanilla label's source string ("$menu_..." token) when the game has localized it already.
+                var token = "Invite Friends";
+                var vanillaLabel = menu.m_inviteButton != null ? menu.m_inviteButton.GetComponentInChildren<TMP_Text>(true) : null;
+                if (vanillaLabel != null)
+                {
+                    token = Localization.instance.textMeshStrings.TryGetValue(vanillaLabel, out var source) ? source : vanillaLabel.text;
+                }
+
+                var invite = Object.Instantiate(template, menuEntries, false);
+                invite.name = "InviteFriends";
+                invite.SetSiblingIndex(playerList.GetSiblingIndex() + 1);
+                invite.anchoredPosition = playerList.anchoredPosition;
+                invite.gameObject.SetActive(false);
+
+                var label = invite.GetComponentInChildren<TMP_Text>(true);
+                if (label != null)
+                {
+                    label.text = Localization.instance.Localize(token);
+                    if (label.text != token)
+                    {
+                        // So a language change re-localizes it like the prefab's own labels.
+                        Localization.instance.textMeshStrings[label] = token;
+                    }
+                }
+
+                var button = invite.GetComponent<Button>();
+                button.onClick = new Button.ButtonClickedEvent();
+                button.onClick.AddListener(menu.InviteFriends);
+                menu.m_inviteButton = button;
+
+                var layout = invite.gameObject.AddComponent<AugaInviteRowLayout>();
+                layout.Step = template.anchoredPosition.y - compendium.anchoredPosition.y;
+                foreach (var name in new[] { "SkipIntro", "CurrentPlayerList", "DividerSmall" })
+                {
+                    if (menuEntries.Find(name) is RectTransform row)
+                    {
+                        layout.Rows.Add(row);
+                        layout.BasePositions.Add(row.anchoredPosition);
+                    }
+                }
+            }
+
+            /// <summary>
+            /// Valheim 1.0 port (pause backdrop): vanilla's pause menu dims the game behind it; Auga's only darkening is a
+            /// soft spot behind the entries. Add a full-screen dim in vanilla's modal colour (the Menu's own full-screen
+            /// dialog backdrop) as MenuRoot's first child, so it sits behind the entries, the confirm dialogs and the
+            /// compendium, and blocks clicks to the HUD like vanilla's modal backdrops.
+            /// </summary>
+            private static void SetupBackdrop(Menu menu)
+            {
+                var root = menu.m_root;
+                if (root == null || root.Find("AugaBackdrop") != null)
+                {
+                    return;
+                }
+
+                // Plain black at vanilla's modal-dim strength. (Copying the cloud-warning Image's colour gave an invisible
+                // backdrop in game: that Image is not the dim.)
+                var color = new Color(0f, 0f, 0f, 0.45f);
+
+                var backdrop = new GameObject("AugaBackdrop", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+                backdrop.layer = root.gameObject.layer;
+                var rect = (RectTransform)backdrop.transform;
+                rect.SetParent(root, false);
+                rect.SetAsFirstSibling();
+                // Centred and far larger than any screen: MenuRoot is not a full-screen rect, so stretching to it covered
+                // only the menu's own area. The canvas clips the rest.
+                rect.anchorMin = new Vector2(0.5f, 0.5f);
+                rect.anchorMax = new Vector2(0.5f, 0.5f);
+                rect.pivot = new Vector2(0.5f, 0.5f);
+                rect.sizeDelta = new Vector2(20000f, 20000f);
+                rect.position = root.GetComponentInParent<Canvas>() is Canvas canvas ? canvas.transform.position : rect.position;
+                var image = backdrop.GetComponent<Image>();
+                image.color = color;
+                image.raycastTarget = true;
+            }
+        }
+
+        // Valheim 1.0 port (pause-texts-7): SetButtonsEnabled decides whether Invite Friends shows; move the rows above
+        // it up by one entry when it does (AugaMenu positions its entries by hand, it has no layout group).
+        [HarmonyPatch(typeof(Menu), nameof(Menu.SetButtonsEnabled))]
+        public static class Menu_SetButtonsEnabled_Patch
+        {
+            [UsedImplicitly]
+            public static void Postfix(Menu __instance)
+            {
+                if (__instance.m_inviteButton == null)
+                {
+                    return;
+                }
+
+                var layout = __instance.m_inviteButton.GetComponent<AugaInviteRowLayout>();
+                if (layout != null)
+                {
+                    layout.Apply();
+                }
             }
         }
 
@@ -389,6 +513,22 @@ namespace Auga
                 }
 
                 __instance.m_texts.Sort((a, b) => string.Compare(a.m_topic, b.m_topic, StringComparison.CurrentCulture));
+
+                // Valheim 1.0 port (pause-texts-8 / harmony-6): 1.0's player statistics page ($inventory_stats: stats per
+                // difficulty, known worlds, kills, items found/crafted) comes from AddStats, which only the vanilla body
+                // calls. Add it to the unfiltered list (not the tutorials one), at the top.
+                if (filter == null)
+                {
+                    var before = __instance.m_texts.Count;
+                    __instance.AddStats();
+                    if (__instance.m_texts.Count > before)
+                    {
+                        var stats = __instance.m_texts[__instance.m_texts.Count - 1];
+                        __instance.m_texts.RemoveAt(__instance.m_texts.Count - 1);
+                        __instance.m_texts.Insert(0, stats);
+                    }
+                }
+
                 return false;
             }
 
@@ -400,5 +540,27 @@ namespace Auga
             }
         }
     }
-}
 
+    /// <summary>
+    /// Valheim 1.0 port (pause-texts-7): AugaMenu places its entries at fixed positions. When the cloned Invite Friends
+    /// entry is shown it takes the Player list / Skip Intro slot, and those rows plus the top divider move up one step.
+    /// </summary>
+    public class AugaInviteRowLayout : MonoBehaviour
+    {
+        public float Step = 46f;
+        public readonly List<RectTransform> Rows = new List<RectTransform>();
+        public readonly List<Vector2> BasePositions = new List<Vector2>();
+
+        public void Apply()
+        {
+            var offset = gameObject.activeSelf ? new Vector2(0f, Step) : Vector2.zero;
+            for (var i = 0; i < Rows.Count; i++)
+            {
+                if (Rows[i] != null)
+                {
+                    Rows[i].anchoredPosition = BasePositions[i] + offset;
+                }
+            }
+        }
+    }
+}

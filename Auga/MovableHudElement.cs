@@ -23,6 +23,13 @@ namespace Auga
 
         public void Update()
         {
+            Apply();
+        }
+
+        // Valheim 1.0 port (#189): public so callers whose vanilla code rewrites the element's position every frame
+        // (Hud.UpdateShipHud runs in LateUpdate, after this Update) can re-apply the configured placement afterwards.
+        public void Apply()
+        {
             if (Anchor == null || Position == null || Scale == null)
                 return;
 

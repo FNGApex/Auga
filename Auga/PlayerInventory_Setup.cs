@@ -62,6 +62,49 @@ namespace Auga
         [HarmonyPatch(typeof(InventoryGui), nameof(InventoryGui.Awake))]
         public static class InventoryGui_Awake_Patch
         {
+            /// <summary>
+            /// Valheim 1.0 port (pause-texts-10): 1.0's Achievements panel (root/Achievements) is only reachable from the
+            /// Achievements button on vanilla's root/Info strip, which Auga hides. Add an icon button at the end of Auga's
+            /// player-panel tab row (a plain button like the PvP one, not a tab) with the vanilla icon and tooltip.
+            /// </summary>
+            private static void AddAchievementsButton(InventoryGui gui, Transform rightPanel)
+            {
+                var tabs = rightPanel.Find("DefaultContent/TabButtonContainer/Tabs");
+                var template = tabs != null ? tabs.Find("TabButton_MessageLog") : null;
+                var vanilla = gui.transform.Find("root/Info_VanillaDonor/Achievements") ?? gui.transform.Find("root/Info/Achievements");
+                if (template == null || gui.m_achievementsPanel == null)
+                {
+                    return;
+                }
+
+                var button = Object.Instantiate(template, tabs, false);
+                button.name = "TabButton_Achievements";
+                button.SetAsLastSibling();
+
+                var vanillaIcon = vanilla != null ? vanilla.Find("Image")?.GetComponent<Image>() : null;
+                var icon = button.Find("Icon")?.GetComponent<Image>();
+                if (icon != null && vanillaIcon != null && vanillaIcon.sprite != null)
+                {
+                    icon.sprite = vanillaIcon.sprite;
+                    icon.preserveAspect = true;
+                }
+
+                var tooltip = button.GetComponent<UITooltip>();
+                var vanillaTooltip = vanilla != null ? vanilla.GetComponent<UITooltip>() : null;
+                if (tooltip != null)
+                {
+                    tooltip.m_text = vanillaTooltip != null && !string.IsNullOrEmpty(vanillaTooltip.m_text) ? vanillaTooltip.m_text : "$inventory_achievements";
+                    if (vanillaTooltip != null && !string.IsNullOrEmpty(vanillaTooltip.m_topic))
+                    {
+                        tooltip.m_topic = vanillaTooltip.m_topic;
+                    }
+                }
+
+                var click = button.GetComponent<Button>();
+                click.onClick = new Button.ButtonClickedEvent();
+                click.onClick.AddListener(gui.OnOpenAchievements);
+            }
+
             [HarmonyPriority(Priority.First)]
             public static void Postfix(InventoryGui __instance)
             {
@@ -179,6 +222,7 @@ namespace Auga
 
                 // Valheim 1.0 port: hidden, not destroyed (the new Achievements button lives here).
                 PortCarryOver.MakeDonor(__instance.transform.Find("root/Info").gameObject);
+                AddAchievementsButton(__instance, rightPanel);
                 /*var info = Object.Instantiate(Auga.Assets.InventoryScreen.transform.Find("root/Info"), containerInventory.parent, false);
                 info.SetSiblingIndex(3);
                 info.gameObject.name = "Info";

@@ -4,5 +4,7 @@
     <ValheimDir Condition="'$(ValheimDir)' == ''">D:\SteamLibrary\steamapps\common\Valheim</ValheimDir>
     <ManagedDir>$(ValheimDir)\valheim_Data\Managed</ManagedDir>
     <BepInExCore>$(ValheimDir)\BepInEx\core</BepInExCore>
+    <!-- Keep the builder's local folders (and user name) out of the dlls' debug info: source paths become /_/... -->
+    <PathMap>$(MSBuildThisFileDirectory)=/_/</PathMap>
   </PropertyGroup>
 </Project>

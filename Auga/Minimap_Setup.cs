@@ -136,11 +136,15 @@ namespace Auga
             minimap.m_selectedIcons[Minimap.PinType.Icon2] = minimap.m_selectedIcon2;
             minimap.m_selectedIcons[Minimap.PinType.Icon3] = minimap.m_selectedIcon3;
             minimap.m_selectedIcons[Minimap.PinType.Icon4] = minimap.m_selectedIcon4;
+            // Valheim 1.0 port (minimap-2): must run before SelectIcon, which writes m_selectedIconPing.
+            PortPingIcon(minimap, newMap);
             minimap.SelectIcon(Minimap.PinType.Icon0);
             minimap.m_nameInput = newMap.Find("NameField").GetComponent<GuiInputField>();
 
             minimap.m_sharedMapHint = newMap.Find("SharedPanel").gameObject;
-            minimap.m_hints = new List<GameObject> { newMap.Find("PingPanel").gameObject };
+            // Valheim 1.0 port (minimap-4): use 1.0's key-hint block (keyboard / gamepad / gamepad+mouse rows) instead of
+            // Auga's single 2023 ping hint, which it duplicates (and whose gamepad glyph is stale).
+            minimap.m_hints = PortLargeMapHints(minimap, newMap);
 
             minimap.m_mapImageLarge.material = Object.Instantiate(originalMiniMapMaterialLarge);
             minimap.m_mapImageSmall.material = Object.Instantiate(originalMiniMapMaterial);
@@ -187,6 +191,142 @@ namespace Auga
 
             Localization.instance.Localize(__instance.transform);
             minimap.Reset();
+        }
+
+        /// <summary>
+        /// Valheim 1.0 port (minimap-2): Auga's large map has no IconPingPanel, so the three ping fields pointed into the
+        /// hidden large_VanillaDonor and PinType.Ping could never be selected. Clone Auga's boss-filter button into a ping
+        /// button to the left of the death button and point the fields at it. As in vanilla, Minimap.OnEnable /
+        /// TouchLayoutChanged show it only while the touch layout is active (m_touchPingPanel).
+        /// </summary>
+        private static void PortPingIcon(Minimap minimap, Transform newMap)
+        {
+            try
+            {
+                var boss = newMap.Find("IconBoss");
+                var death = (RectTransform)newMap.Find("IconDeath");
+                if (boss == null || death == null)
+                {
+                    return;
+                }
+
+                var ping = (RectTransform)Object.Instantiate(boss.gameObject, newMap, false).transform;
+                ping.name = "IconPing";
+                ping.SetSiblingIndex(death.GetSiblingIndex() + 1);
+                ping.anchoredPosition = death.anchoredPosition + new Vector2(-(death.sizeDelta.x + 6f), 0f);
+
+                var icon = ping.Find("Icon")?.GetComponent<Image>();
+                var selected = ping.Find("Selected")?.GetComponent<Image>();
+                if (icon == null || selected == null)
+                {
+                    Object.Destroy(ping.gameObject);
+                    return;
+                }
+
+                icon.sprite = minimap.m_pingIcon;
+                icon.preserveAspect = true;
+                icon.color = Color.white;
+
+                minimap.m_selectedIconPing = selected;
+                minimap.m_pingImageObject = icon;
+                minimap.m_touchPingPanel = ping;
+
+                SetButtonListener(newMap, "IconPing", minimap.OnPressedPingIcon);
+                var click = ping.GetComponent<MouseClick>();
+                if (click != null)
+                {
+                    click.m_rightClick = new UnityEvent();
+                }
+
+                ping.gameObject.SetActive(ZInput.IsTouchActive());
+            }
+            catch (System.Exception e)
+            {
+                Debug.LogWarning("[Auga] minimap ping icon port failed: " + e);
+            }
+        }
+
+        /// <summary>
+        /// Valheim 1.0 port (minimap-4): move 1.0's large-map key hints (KeyHints and the pin-icon mouse hints) off the
+        /// hidden donor into Auga's large map and return the list SetMapMode should toggle. The hint strip goes along the
+        /// bottom edge between Auga's bottom-left and bottom-right panels, clear of the right-hand icon column.
+        /// </summary>
+        private static List<GameObject> PortLargeMapHints(Minimap minimap, Transform newMap)
+        {
+            var hints = new List<GameObject>();
+            var augaPingHint = newMap.Find("PingPanel");
+            try
+            {
+                var donor = minimap.transform.Find("large" + PortCarryOver.DonorSuffix);
+                var vanillaHints = minimap.m_hints ?? new List<GameObject>();
+                var keyHints = donor != null ? donor.Find("KeyHints") as RectTransform : null;
+                var iconHints = donor != null ? donor.Find("IconPanel/iconhints") as RectTransform : null;
+
+                if (keyHints != null)
+                {
+                    keyHints.SetParent(newMap, false);
+                    keyHints.SetAsLastSibling();
+                    keyHints.anchorMin = new Vector2(0f, 0f);
+                    keyHints.anchorMax = new Vector2(1f, 0f);
+                    keyHints.pivot = new Vector2(0.5f, 0f);
+                    keyHints.offsetMin = new Vector2(230f, 6f);
+                    keyHints.offsetMax = new Vector2(-230f, 48f);
+                    MakeHintClickThrough(keyHints);
+                    hints.Add(keyHints.gameObject);
+                }
+
+                var augaIconPanel = newMap.Find("IconPanel");
+                if (iconHints != null && augaIconPanel != null)
+                {
+                    iconHints.SetParent(augaIconPanel, false);
+                    var element = iconHints.GetComponent<LayoutElement>() ?? iconHints.gameObject.AddComponent<LayoutElement>();
+                    element.ignoreLayout = true;
+                    MakeHintClickThrough(iconHints);
+                    if (vanillaHints.Contains(iconHints.gameObject))
+                    {
+                        hints.Add(iconHints.gameObject);
+                    }
+                }
+
+                // Any other 1.0 hint object still on the donor: bring it along unchanged so the setting still covers it.
+                foreach (var hint in vanillaHints)
+                {
+                    if (hint != null && !hints.Contains(hint) && hint != (iconHints != null ? iconHints.gameObject : null)
+                        && donor != null && hint.transform.IsChildOf(donor))
+                    {
+                        hint.transform.SetParent(newMap, false);
+                        MakeHintClickThrough(hint.transform);
+                        hints.Add(hint);
+                    }
+                }
+            }
+            catch (System.Exception e)
+            {
+                Debug.LogWarning("[Auga] minimap key hint port failed, keeping Auga's ping hint: " + e);
+            }
+
+            if (hints.Count == 0)
+            {
+                if (augaPingHint != null)
+                {
+                    hints.Add(augaPingHint.gameObject);
+                }
+            }
+            else if (augaPingHint != null)
+            {
+                augaPingHint.gameObject.SetActive(false);
+            }
+
+            return hints;
+        }
+
+        // Valheim 1.0 port (minimap-4): the hints now sit on top of the map image; don't let them swallow map clicks.
+        private static void MakeHintClickThrough(Transform hint)
+        {
+            foreach (var graphic in hint.GetComponentsInChildren<Graphic>(true))
+            {
+                graphic.raycastTarget = false;
+            }
         }
 
         private static void SetButtonListener(Transform root, string childName, UnityAction listener)

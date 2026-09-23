@@ -192,6 +192,11 @@ namespace Auga
             HasJewelcrafting = Chainloader.PluginInfos.TryGetValue("org.bepinex.plugins.jewelcrafting", out var jewelcraftingPlugin);
 
             _harmony = Harmony.CreateAndPatchAll(Assembly.GetExecutingAssembly(), PluginID);
+            // Another plugin may have built the localization before our SetupLanguage postfix existed.
+            if (Localization.m_instance != null)
+            {
+                AddTranslations(Localization.m_instance);
+            }
 
             if (HasChatter)
             {
@@ -471,6 +476,12 @@ namespace Auga
             }
         }
 
+        private static readonly Dictionary<string, string> _translations = new Dictionary<string, string>();
+
+        // Valheim 1.0 port: only parse here. Touching Localization.instance from Awake builds it before Steam is up; on
+        // an install with no saved "language" pref that reaches SteamUtils and throws, which aborted Auga.Awake. The
+        // words are added whenever the game loads a language instead (see Localization_SetupLanguage_Patch), which also
+        // keeps them after a language change (SetLanguage clears every word first).
         private static void LoadTranslations()
         {
             var translationsJsonText = LoadJsonText("translations.json");
@@ -484,8 +495,25 @@ namespace Auga
             {
                 if (!string.IsNullOrEmpty(translation.Key) && !string.IsNullOrEmpty(translation.Value.ToString()))
                 {
-                    Localization.instance.AddWord(translation.Key, translation.Value.ToString());
+                    _translations[translation.Key] = translation.Value.ToString();
                 }
+            }
+        }
+
+        internal static void AddTranslations(Localization localization)
+        {
+            foreach (var translation in _translations)
+            {
+                localization.AddWord(translation.Key, translation.Value);
+            }
+        }
+
+        [HarmonyPatch(typeof(Localization), nameof(Localization.SetupLanguage))]
+        public static class Localization_SetupLanguage_Patch
+        {
+            public static void Postfix(Localization __instance)
+            {
+                AddTranslations(__instance);
             }
         }
 

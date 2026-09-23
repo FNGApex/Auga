@@ -135,6 +135,25 @@ namespace AugaUnity
         protected int _quality;
         protected int _variant;
         protected string _originalTooltip;
+        protected int _stackOverride = -1;
+
+        /// <summary>
+        /// Valheim 1.0 port (crafting-10): stack size for the value/weight lines when the tooltip previews a craft (recipe
+        /// amount x multi-craft amount, like vanilla's GetTooltip stackOverride). -1 = the item's own stack. Regenerates
+        /// the text boxes when it changes.
+        /// </summary>
+        public virtual void SetStackOverride(int stack)
+        {
+            if (_stackOverride == stack)
+                return;
+
+            _stackOverride = stack;
+            if (_item != null)
+            {
+                GenerateItemTextBoxes(_item, _quality);
+                Localization.instance.Localize(transform);
+            }
+        }
 
         public virtual void Start()
         {
@@ -425,9 +444,14 @@ namespace AugaUnity
             {
                 var textBox = AddTextBox(upgrade ? UpgradeTwoColumnTextBoxPrefab : TwoColumnTextBoxPrefab);
 
+                // Valheim 1.0 port (widgets-8): vanilla order is "per item (stack total)", the total only for stacks.
+                var stack = _stackOverride > 0 ? _stackOverride : item.m_stack;
                 if (item.m_shared.m_value > 0)
                 {
-                    TextBoxAddPreprocessedLine(textBox, item, "$item_value", item.GetValue(), item.m_shared.m_value);
+                    if (stack > 1)
+                        TextBoxAddPreprocessedLine(textBox, item, "$item_value", item.m_shared.m_value, $"{item.m_shared.m_value * stack} $item_total");
+                    else
+                        TextBoxAddPreprocessedLine(textBox, item, "$item_value", item.m_shared.m_value);
                 }
                 
                 if (item.m_shared.m_maxQuality > 1)
@@ -461,7 +485,10 @@ namespace AugaUnity
                     }
                 }
 
-                TextBoxAddPreprocessedLine(textBox, item, "$item_weight", item.GetWeight().ToString("0.0"));
+                if (stack > 1)
+                    TextBoxAddPreprocessedLine(textBox, item, "$item_weight", item.GetNonStackedWeight().ToString("0.0"), $"{item.GetWeight(stack):0.0} $item_total");
+                else
+                    TextBoxAddPreprocessedLine(textBox, item, "$item_weight", item.GetWeight().ToString("0.0"));
             }
 
             if (!item.m_shared.m_teleportable || item.m_shared.m_movementModifier != 0 || item.m_shared.m_eitrRegenModifier != 0)
@@ -496,53 +523,114 @@ namespace AugaUnity
                 TextBoxAddPreprocessedLine(textBox, item, "", setStatusEffect);
             }
 
-            var extraText = GetExtraTextFromTooltip();
+            // Valheim 1.0 port: everything vanilla prints that Auga's boxes above don't (equipment modifiers, subtitle,
+            // cheated marker, new game+ level, adrenaline effects, text other mods add). The food box still hides it:
+            // food shows its own complete box.
+            var extraText = GetExtraTextFromTooltip(item, skillLevel);
             if (!string.IsNullOrEmpty(extraText) && showExtraText)
             {
                 if (LeftAlignedTextBoxPrefab != null)
                 {
                     AddDivider();
                     var textBox = AddTextBox(LeftAlignedTextBoxPrefab);
-                    textBox.Text.text = extraText;
+                    // Localized here: the later whole-tooltip pass garbles tokens that follow rich-text tags inside
+                    // multi-line blocks ("$se_..._description" came out as "]se_..._description").
+                    textBox.Text.text = Localization.instance.Localize(extraText);
                 }
             }
         }
 
-        private string GetExtraTextFromTooltip()
+        // Lines of the vanilla tooltip that Auga's own boxes already show (by their leading token).
+        private static readonly string[] _linesShownByAuga =
         {
-            var outputString = new StringBuilder();
+            "$item_crafter", "$item_value", "$item_weight", "$item_quality", "$item_durability", "$item_repairlevel",
+            "$inventory_", "NonPlayer:", "$item_staminause", "$item_eitruse", "$item_healthuse", "$item_staminahold",
+            "$item_knockback", "$item_backstab", "$item_blockarmor", "$item_blockforce", "$item_parrybonus", "$item_armor",
+            "$item_food_", "$item_eitrregen_modifier", "$item_movement_modifier", "$item_onehanded", "$item_twohanded",
+        };
 
-            using (StringReader reader = new StringReader(_originalTooltip))
+        private static readonly string[] _colouredLinesShownByAuga = { "$item_dlc", "$item_noteleport" };
+
+        /// <summary>
+        /// Valheim 1.0 port: the vanilla tooltip with everything Auga already shows taken out. The 2023 version kept
+        /// what came after the "$item_weight" line; 1.0 moved weight up and added lines before it, so the subtitle and
+        /// cheated marker were lost and the set effect appeared twice (#227), while the new equipment modifiers only
+        /// showed by luck (auga-lib-4). Filtering is also what keeps lines other mods append to GetTooltip.
+        /// </summary>
+        private string GetExtraTextFromTooltip(ItemDrop.ItemData item, float skillLevel)
+        {
+            var text = _originalTooltip ?? string.Empty;
+            var description = item.m_shared.m_description + "\n";
+            if (text.StartsWith(description, StringComparison.Ordinal))
+            {
+                text = text.Substring(description.Length);
+            }
+
+            // Multi-line blocks Auga draws in its own boxes: take the exact text vanilla appended.
+            var statusEffect = item.GetStatusEffectTooltip(item.m_quality, skillLevel);
+            if (statusEffect.Length > 0 && (item.m_shared.m_itemType == ItemDrop.ItemData.ItemType.Consumable || IsWeapon(item)))
+            {
+                text = RemoveFirst(text, "\n\n" + statusEffect);
+            }
+
+            var projectile = item.GetProjectileTooltip(item.m_quality);
+            if (projectile.Length > 0 && IsWeapon(item))
+            {
+                text = RemoveFirst(text, "\n\n" + projectile);
+            }
+
+            var setEffect = item.GetSetStatusEffectTooltip(item.m_quality, skillLevel);
+            if (setEffect.Length > 0 && item.m_shared.m_setStatusEffect != null)
+            {
+                text = RemoveFirst(text, string.Format("\n\n$item_seteffect (<color=orange>{0}</color> $item_parts):<color=orange>{1}</color>\n{2}",
+                    item.m_shared.m_setSize, item.m_shared.m_setStatusEffect.m_name, setEffect));
+            }
+
+            var outputString = new StringBuilder();
+            using (var reader = new StringReader(text))
             {
                 string line;
-                bool foundWeight = false;
-                bool foundFirstColor = false;
-                
                 while ((line = reader.ReadLine()) != null)
                 {
-                    if ((line.Contains("$item_") || line.Contains("$inventory_")) && !foundWeight)
+                    var trimmed = line.Trim();
+                    if (trimmed.Length == 0 || _linesShownByAuga.Any(prefix => trimmed.StartsWith(prefix, StringComparison.Ordinal)))
                     {
-                        if (line.Contains("$item_weight"))
-                            foundWeight = true;
+                        continue;
                     }
-                    else
+
+                    if (trimmed.StartsWith("<color", StringComparison.Ordinal) && _colouredLinesShownByAuga.Any(token => trimmed.Contains(token)))
                     {
-                        if (foundWeight)
-                        {
-                            if ((line.StartsWith("<color") || (!line.StartsWith("$item_") && !line.StartsWith("$inventory_"))) && !foundFirstColor)
-                                foundFirstColor = true;
-                            
-                            if (!foundFirstColor)
-                                continue;
-                            
-                            if (!string.IsNullOrEmpty(line.Trim()))
-                                outputString.AppendLine(line);
-                        }
+                        continue;
                     }
+
+                    // '\n', not AppendLine: Localization does not end a $word at '\r'.
+                    outputString.Append(line).Append('\n');
                 }
             }
-            
-            return outputString.ToString();
+
+            return outputString.ToString().TrimEnd();
+        }
+
+        private static string RemoveFirst(string text, string part)
+        {
+            var index = text.IndexOf(part, StringComparison.Ordinal);
+            return index < 0 ? text : text.Remove(index, part.Length);
+        }
+
+        private static bool IsWeapon(ItemDrop.ItemData item)
+        {
+            switch (item.m_shared.m_itemType)
+            {
+                case ItemDrop.ItemData.ItemType.OneHandedWeapon:
+                case ItemDrop.ItemData.ItemType.Bow:
+                case ItemDrop.ItemData.ItemType.TwoHandedWeapon:
+                case ItemDrop.ItemData.ItemType.TwoHandedWeaponLeft:
+                case ItemDrop.ItemData.ItemType.Torch:
+                case ItemDrop.ItemData.ItemType.Ammo:
+                    return true;
+                default:
+                    return false;
+            }
         }
 
         private void AddResourceUseTextbox(ItemDrop.ItemData item)
@@ -601,6 +689,9 @@ namespace AugaUnity
                 AddDamageLine(textBox, item, "$inventory_poison", damage.m_poison, previousDamage.m_poison, min, max, upgrade);
             if (damage.m_spirit != 0.0f)
                 AddDamageLine(textBox, item, "$inventory_spirit", damage.m_spirit, previousDamage.m_spirit, min, max, upgrade);
+            // Valheim 1.0 port (auga-lib-7): damage that only hits creatures; vanilla labels it with this literal.
+            if (damage.m_nonPlayer != 0.0f)
+                AddDamageLine(textBox, item, "NonPlayer", damage.m_nonPlayer, previousDamage.m_nonPlayer, min, max, upgrade);
 
             if (item.m_shared.m_attackForce > 0)
                 TextBoxAddPreprocessedLine(textBox, item, "$item_knockback", item.m_shared.m_attackForce);
@@ -838,7 +929,8 @@ namespace AugaUnity
                             foundSubtitle = true;
                         }
                         else
-                            outputString.AppendLine(line);
+                            // '\n', not AppendLine: Localization does not end a $word at '\r'.
+                            outputString.Append(line).Append('\n');
                     }
                 }
             }

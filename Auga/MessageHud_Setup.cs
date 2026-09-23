@@ -55,17 +55,25 @@ namespace Auga
 
         [HarmonyPatch(typeof(MessageHud), nameof(MessageHud.ShowMessage))]
         [HarmonyPostfix]
-        public static void MessageHud_ShowMessage_Postfix(MessageHud __instance, MessageHud.MessageType type, string text, int amount, Sprite icon)
+        public static void MessageHud_ShowMessage_Postfix(MessageHud __instance, MessageHud.MessageType type, string text, int amount, Sprite icon, bool showDespiteHiddenHUD)
         {
-            if (Hud.IsUserHidden())
+            // Valheim 1.0 port (text-chat-6): 1.0 added showDespiteHiddenHUD; vanilla only drops the message when the HUD is
+            // user-hidden and that flag is false, so honour it the same way.
+            if (Hud.IsUserHidden() && !showDespiteHiddenHUD)
             {
                 return;
             }
 
-            text = Localization.instance.Localize(text);
             if (type == MessageHud.MessageType.TopLeft)
             {
+                // Valheim 1.0 port (text-chat-6): degrade instead of throwing if the TopLeftMessage replacement did not run.
                 var controller = __instance.GetComponent<AugaTopLeftMessageController>();
+                if (controller == null)
+                {
+                    return;
+                }
+
+                text = Localization.instance.Localize(text);
                 controller.AddMessage(text, icon, amount);
             }
         }

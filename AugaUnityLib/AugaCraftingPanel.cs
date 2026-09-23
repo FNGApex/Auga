@@ -67,6 +67,7 @@ namespace AugaUnity
         private CraftingRequirementsPanel _currentPanel;
         private Action<bool> _onShowCustomVariantDialog;
         private bool _multiCraftEnabled;
+        private int _craftMultiplier = 1;
 
         private void Awake()
         {
@@ -121,14 +122,53 @@ namespace AugaUnity
 
             var inventoryGui = InventoryGui.instance;
             _currentPanel = panel;
-            if (inventoryGui?.m_selectedRecipe.ItemData?.GetIcon() != null)
-            {
-                _currentPanel.Icon.sprite = inventoryGui.m_selectedRecipe.ItemData.GetIcon();
-            }
-            SetRecipe(inventoryGui.m_selectedRecipe.Recipe, inventoryGui.m_selectedRecipe.ItemData, inventoryGui.m_selectedVariant);
+            // Valheim 1.0 port (#100): Activate first so ItemInfo.Icon points at the new panel before SetRecipe writes the
+            // icon (it used to land on the previous panel), and SetRecipe now sets the icon even when ItemData is null.
             panel.gameObject.SetActive(true);
             panel.Activate(inventoryGui, ItemInfo);
-            
+            SetRecipe(inventoryGui.m_selectedRecipe.Recipe, inventoryGui.m_selectedRecipe.ItemData, inventoryGui.m_selectedVariant);
+            panel.Update();
+        }
+
+        // Valheim 1.0 port (#100): same sprite vanilla puts in m_recipeIcon (UpdateRecipe), for owned items and plain recipes
+        // alike. ComplexTooltip.SetItem skips repeat calls, so it cannot be relied on to refresh a newly activated panel.
+        private void UpdatePanelIcon(Recipe recipe, ItemDrop.ItemData item, int variant)
+        {
+            if (_currentPanel == null || _currentPanel.Icon == null || recipe == null)
+            {
+                return;
+            }
+
+            var icons = recipe.m_item.m_itemData.m_shared.m_icons;
+            var index = item?.m_variant ?? variant;
+            Sprite sprite = null;
+            if (icons != null && icons.Length > 0)
+            {
+                sprite = icons[Mathf.Clamp(index, 0, icons.Length - 1)];
+            }
+
+            if (sprite != null)
+            {
+                _currentPanel.Icon.sprite = sprite;
+            }
+        }
+
+        // Valheim 1.0 port (crafting-10): vanilla appends " x{recipe amount * multi-craft amount}" to m_recipeName for
+        // stacking recipes (InventoryGui.UpdateRecipe); Auga's visible name is the ComplexTooltip topic.
+        private void UpdateItemInfoTopic(Recipe recipe, ItemDrop.ItemData item)
+        {
+            // Like vanilla, only stacking recipes get the suffix; others keep whatever ComplexTooltip.SetItem wrote.
+            if (recipe == null || item != null || recipe.m_amount <= 1 || TabController.SelectedIndex > 1 || ItemInfo == null || ItemInfo.Topic == null)
+            {
+                return;
+            }
+
+            var topic = $"{Localization.instance.Localize(recipe.m_item.m_itemData.m_shared.m_name)} x{recipe.m_amount * Mathf.Max(1, _craftMultiplier)}";
+
+            if (ItemInfo.Topic.text != topic)
+            {
+                ItemInfo.SetTopic(topic);
+            }
         }
 
         [UsedImplicitly]
@@ -165,13 +205,17 @@ namespace AugaUnity
                     var quality = station != null && station.m_upgrader
                         ? item.m_quality + 1
                         : Mathf.Min(item.m_quality + 1, item.m_shared.m_maxQuality);
-                    ItemInfo.SetItem(item, quality, variant);
+                    // Valheim 1.0 port (#100): an owned item keeps its own variant (vanilla: itemData?.m_variant ?? m_selectedVariant);
+                    // the upgrade tab used to get this from a per-frame SetRecipe call.
+                    ItemInfo.SetItem(item, quality, item.m_variant);
                 }
                 else
                 {
                     ItemInfo.SetItem(recipe.m_item.m_itemData, 1, variant);
                 }
                 ItemInfo.gameObject.SetActive(true);
+                UpdatePanelIcon(recipe, item, variant);
+                UpdateItemInfoTopic(recipe, item);
             }
 
             VariantDialog.OnClose();
@@ -230,18 +274,33 @@ namespace AugaUnity
         /// <param name="requirements">The list vanilla just built (upgrader-resource and one-ingredient filtering applied); null = all of the recipe's.</param>
         public virtual void PostSetupRequirementList(Recipe recipe, ItemDrop.ItemData item, int quality, Player player, bool allowedWorkbenchQuality, int craftMultiplier = 1, IList<Piece.Requirement> requirements = null)
         {
+            // Valheim 1.0 port (crafting-10): remember the multi-craft amount for the item-info topic, and preview the
+            // whole batch's value/weight like vanilla (stackOverride = recipe amount x multi-craft amount).
+            _craftMultiplier = Mathf.Max(1, craftMultiplier);
+            if (ItemInfo != null)
+            {
+                ItemInfo.SetStackOverride(item == null && recipe != null && TabController.SelectedIndex <= 1 ? recipe.m_amount * _craftMultiplier : -1);
+            }
+            UpdateItemInfoTopic(recipe, item);
+
             if (TabController.SelectedIndex == 1 && item != null)
             {
-                var maxQuality = item.m_shared.m_maxQuality == item.m_quality;
+                // Valheim 1.0 port (crafting-5): an upgrader station (vanilla's Forge of Potential) lists max-quality items
+                // and upgrades them past m_maxQuality, so the "cannot go higher" panel is only for other stations.
+                var station = player != null ? player.GetCurrentCraftingStation() : null;
+                var atUpgrader = station != null && station.m_upgrader;
+                var maxQuality = item.m_quality >= item.m_shared.m_maxQuality && !atUpgrader;
                 if (maxQuality)
                 {
-                    ActivatePanel(MaxQualityUpgradeRequirementsPanel);
+                    // Valheim 1.0 port (#100): only switch panels on a change; re-activating every frame re-ran SetRecipe
+                    // and toggled the panel off and on.
+                    if (_currentPanel != MaxQualityUpgradeRequirementsPanel)
+                        ActivatePanel(MaxQualityUpgradeRequirementsPanel);
                     return;
                 }
-                else
+                else if (_currentPanel != UpgradeRequirementsPanel)
                 {
                     ActivatePanel(UpgradeRequirementsPanel);
-                    SetRecipe(recipe, item, item.m_variant);
                 }
             }
 
@@ -337,6 +396,34 @@ namespace AugaUnity
             else
             {
                 Multicraft.SetActive(_multiCraftEnabled);
+            }
+
+            SyncTabsFromVanilla();
+        }
+
+        // Valheim 1.0 port (crafting-8): a station with m_hasCraftTab = false (vanilla's Forge of Potential) makes
+        // InventoryGui.UpdateCraftingPanel force the upgrade tab and hide the craft tab. Mirror that on Auga's own tabs,
+        // re-checked every frame because AugaTabController.SelectTab is a no-op when the index is unchanged.
+        public virtual void SyncTabsFromVanilla()
+        {
+            var inventoryGui = InventoryGui.instance;
+            var player = Player.m_localPlayer;
+            if (inventoryGui == null || player == null || TabController == null || TabController.TabButtons.Count < 2)
+            {
+                return;
+            }
+
+            var station = player.GetCurrentCraftingStation();
+            var hasCraftTab = station == null || station.m_hasCraftTab;
+            var craftTabButton = TabController.TabButtons[0];
+            if (craftTabButton != null && craftTabButton.gameObject.activeSelf != hasCraftTab)
+            {
+                craftTabButton.gameObject.SetActive(hasCraftTab);
+            }
+
+            if (!hasCraftTab && TabController.SelectedIndex == 0 && inventoryGui.InUpradeTab())
+            {
+                TabController.SelectTab(1);
             }
         }
     }

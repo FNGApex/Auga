@@ -69,7 +69,7 @@ Auga applies ~55 Harmony patches (plus 2 reflective compat blocks). I checked ev
 ### [pause-texts-1] Menu.m_skipButton changed GameObject -> Button in 1.0; Auga's prefab still stores a GameObject, so SetButtonsEnabled NREs on every pause-menu open
 
 - **Verdict:** confirmed (reviewer confidence 97)
-- **Auga:** C:\Users\user_\Documents\GitHub\Valheim_Creative\Auga\AugaUnity\Assets\Prefabs\AugaMenu.prefab:450 (Menu component &5026525812570277222)
+- **Auga:** AugaUnity\Assets\Prefabs\AugaMenu.prefab:450 (Menu component &5026525812570277222)
 - **Vanilla 1.0:** Menu.SetButtonsEnabled() / Menu.Show() (decomp\Menu.cs:250, :228)
 - **Trigger:** Press Escape (or gamepad Menu) in-game - every single time the pause menu is opened.
 - **Consequence:** NullReferenceException at UnityEngine.Component.get_gameObject() -> Menu.SetButtonsEnabled -> Menu.Show -> Menu.Update. Show() aborts at its first SetButtonsEnabled statement, so Game.Pause(), JoinCode.Show(), UpdateNavigation(), m_rebuildLayout=true, ZInput.WorkaroundEnabled=false and HandleInputLayoutChanged() all never run: the menu appears but the game is NOT paused and no button-visibility rule is applied.
@@ -79,7 +79,7 @@ Auga applies ~55 Harmony patches (plus 2 reflective compat blocks). I checked ev
 ### [inventory-1] Auga's slot prefab has no UIDragHandler; 1.0 InventoryGrid.UpdateGui dereferences it unconditionally (this IS the run4 NRE)
 
 - **Verdict:** confirmed (reviewer confidence 95)
-- **Auga:** C:\Users\user_\Documents\GitHub\Valheim_Creative\Auga\AugaUnity\Assets\Prefabs\InventoryElement.prefab — root GameObject 'InventoryElement' (fileID 1830661766780744735), component list at lines 222-233; and C:\Users\user_\Documents\GitHub\Valheim_Creative\Auga\Auga\PortInventoryElement.cs:29-50 (Setup does not add it)
+- **Auga:** AugaUnity\Assets\Prefabs\InventoryElement.prefab — root GameObject 'InventoryElement' (fileID 1830661766780744735), component list at lines 222-233; and Auga\PortInventoryElement.cs:29-50 (Setup does not add it)
 - **Vanilla 1.0:** InventoryGrid.UpdateGui — scratchpad\decomp\InventoryGrid.cs:282-285
 - **Trigger:** Open the inventory (Tab) or any chest for the first time; runs once per grid when m_width/m_height first differ from the 4x4 defaults.
 - **Consequence:** NullReferenceException inside InventoryGrid.UpdateGui on the very first slot (j=0,i=0), before m_elements.Add. m_width/m_height were already assigned, so the creation block never runs again: m_elements stays empty forever, the player and container grids render ZERO slots, GetHoveredElement()/GetElement() always return null and no tooltips appear. Exactly matches auga_run4.log lines 337-342, which is logged once and never repeats. With a gamepad there is a second NRE: InventoryGrid.GetGamepadSelectedElement (decomp/InventoryGrid.cs:643-647) passes the bounds check against m_width/m_height but GetElement() returns null out of the empty list, so `.transform` throws on every d-pad press and in InventoryGui.GetSelectedGamepadElement/GetSelectedSize.
@@ -89,7 +89,7 @@ Auga applies ~55 Harmony patches (plus 2 reflective compat blocks). I checked ev
 ### [main-menu-4] WorldListElement.prefab has no 'modifiers' child and uses legacy UI.Text, so 1.0 UpdateWorldList NREs the moment the menu swap is re-enabled
 
 - **Verdict:** confirmed (reviewer confidence 95)
-- **Auga:** C:\Users\user_\Documents\GitHub\Valheim_Creative\Auga\AugaUnity\Assets\Prefabs\MainMenu\WorldListElement.prefab; consumed by the commented-out `__instance.m_worldListElement = Auga.Assets.WorldListElement;` at Auga\MainMenu_Setup.cs:141
+- **Auga:** AugaUnity\Assets\Prefabs\MainMenu\WorldListElement.prefab; consumed by the commented-out `__instance.m_worldListElement = Auga.Assets.WorldListElement;` at Auga\MainMenu_Setup.cs:141
 - **Vanilla 1.0:** FejdStartup.UpdateWorldList (decomp/FejdStartup.cs:1308, crash line 1338)
 - **Trigger:** Opening Start Game -> world list, once MainMenu_Setup's block is uncommented.
 - **Consequence:** NullReferenceException in FejdStartup.UpdateWorldList: `gameObject.transform.Find("modifiers")` returns null and is dereferenced without a guard. Even past that, `Find("seed").GetComponent<TMP_Text>()` and `Find("name").GetComponent<TMP_Text>()` return null because those children carry legacy UnityEngine.UI.Text, so `component2.text = ...` throws. The world list is unusable.
@@ -100,7 +100,7 @@ Auga applies ~55 Harmony patches (plus 2 reflective compat blocks). I checked ev
 ### [harmony-5] The 'resetbiomes' console command writes a HashSet<Heightmap.Biome> into Player.m_knownBiome, which 1.0 retyped to HashSet<string>
 
 - **Verdict:** confirmed (reviewer confidence 93)
-- **Auga:** C:\Users\user_\Documents\GitHub\Valheim_Creative\Auga\Auga\Auga.cs:667-679 (Terminal_InitTerminal_Patch.Postfix)
+- **Auga:** Auga\Auga.cs:667-679 (Terminal_InitTerminal_Patch.Postfix)
 - **Vanilla 1.0:** Player.m_knownBiome (decomp\Player.cs:314)
 - **Trigger:** Type `resetbiomes` in the in-game console.
 - **Consequence:** ArgumentException from FieldInfo.SetValue ("Object of type 'System.Collections.Generic.HashSet`1[Heightmap+Biome]' cannot be converted to type 'System.Collections.Generic.HashSet`1[System.String]'"), the command does nothing and the exception surfaces in the console/log.
@@ -110,7 +110,7 @@ Auga applies ~55 Harmony patches (plus 2 reflective compat blocks). I checked ev
 ### [inventory-2] InventoryGrid.CanDropDragOntoItem is never assigned on Auga's replacement grids — next NRE in UpdateGui after the UIDragHandler fix
 
 - **Verdict:** confirmed (reviewer confidence 92)
-- **Auga:** C:\Users\user_\Documents\GitHub\Valheim_Creative\Auga\Auga\PlayerInventory_Setup.cs:42-44 and :51-53 (m_playerGrid / m_containerGrid replaced, only m_onSelected and m_onRightClick re-attached)
+- **Auga:** Auga\PlayerInventory_Setup.cs:42-44 and :51-53 (m_playerGrid / m_containerGrid replaced, only m_onSelected and m_onRightClick re-attached)
 - **Vanilla 1.0:** InventoryGrid.UpdateGui — scratchpad\decomp\InventoryGrid.cs:375; assignment site InventoryGui.Awake — scratchpad\decomp\InventoryGui.cs:404-407
 - **Trigger:** Any frame the inventory is open and the grid holds at least one item, i.e. immediately after slots start being created.
 - **Consequence:** NullReferenceException on `element.m_canBeDroppedOn = CanDropDragOntoItem(item);` — the Func<ItemDrop.ItemData,bool> is invoked with no null guard, once per item, every frame. Unlike the UIDragHandler crash this one repeats forever (the element-creation block has already been passed), so the inventory floods the log and UpdateGui aborts part-way through every item loop: durability/equipped/quality/stack overlays and tooltips stop updating from that item onward.
@@ -121,7 +121,7 @@ Auga applies ~55 Harmony patches (plus 2 reflective compat blocks). I checked ev
 ### [harmony-1] Menu.m_skipButton changed GameObject->Button, so PortCarryOver never replaces it and Menu.SetButtonsEnabled throws - the pause menu cannot be opened
 
 - **Verdict:** confirmed (reviewer confidence 92)
-- **Auga:** C:\Users\user_\Documents\GitHub\Valheim_Creative\Auga\Auga\PauseMenu_Setup.cs:237-255 (Menu_Start_Patch.Postfix) together with C:\Users\user_\Documents\GitHub\Valheim_Creative\Auga\Auga\PortCarryOver.cs:104-111 (FillComponent only fills fields that are null); prefab C:\Users\user_\Documents\GitHub\Valheim_Creative\Auga\AugaUnity\Assets\Prefabs\AugaMenu.prefab:450
+- **Auga:** Auga\PauseMenu_Setup.cs:237-255 (Menu_Start_Patch.Postfix) together with Auga\PortCarryOver.cs:104-111 (FillComponent only fills fields that are null); prefab AugaUnity\Assets\Prefabs\AugaMenu.prefab:450
 - **Vanilla 1.0:** Menu.SetButtonsEnabled() (decomp\Menu.cs), called unconditionally from Menu.Show(); Menu.Show() is called from Menu.Update()
 - **Trigger:** Press Escape in-game to open the pause menu (every time).
 - **Consequence:** NullReferenceException in UnityEngine.Component.get_gameObject() inside Menu.SetButtonsEnabled, thrown before the menu is shown. The pause menu never appears, so Settings / Save / Logout / Quit are unreachable.
@@ -143,7 +143,7 @@ Auga applies ~55 Harmony patches (plus 2 reflective compat blocks). I checked ev
 ### [pause-texts-3] Menu.m_settingsPrefab still points at AugaSettings.prefab, so the pause-menu Settings button instantiates Auga's 2023 Settings screen even though the port leaves Settings vanilla
 
 - **Verdict:** confirmed (reviewer confidence 88)
-- **Auga:** C:\Users\user_\Documents\GitHub\Valheim_Creative\Auga\AugaUnity\Assets\Prefabs\AugaMenu.prefab:446 (`m_settingsPrefab: {fileID: 6379034644791463747, guid: 0ac5c3283b1cf6444bd7417013918aa6}` = Prefabs/AugaSettings.prefab); button wiring at AugaMenu.prefab:3792 (`m_MethodName: OnSettings`)
+- **Auga:** AugaUnity\Assets\Prefabs\AugaMenu.prefab:446 (`m_settingsPrefab: {fileID: 6379034644791463747, guid: 0ac5c3283b1cf6444bd7417013918aa6}` = Prefabs/AugaSettings.prefab); button wiring at AugaMenu.prefab:3792 (`m_MethodName: OnSettings`)
 - **Vanilla 1.0:** Menu.OnSettings() (decomp\Menu.cs:411) -> Settings.Awake()/InitializeTabs()/SetAvailableTabs() (decomp\Settings.cs:50, :88, :65)
 - **Trigger:** Open the pause menu and click 'Settings'.
 - **Consequence:** `SetAvailableTabs()` adds `tab.m_page.gameObject.GetComponent<ISettingsTab>()` for each of Auga's 2023 tab pages - none of which implement ISettingsTab - so SettingsTabs is a list of nulls and the next loop `settingsTab.Initialize()` throws NullReferenceException inside Settings.Awake. The screen shows a dead 2023 layout. Worse, Menu.m_settingsInstance is still assigned and m_closeMenuState becomes SettingsOpen, so Menu.Update's Escape branch is gated off (`!m_settingsInstance`), while Settings.Update's own Escape -> OnBack() -> ResetTabSettings() re-throws on the same null list: the pause menu is soft-locked.
@@ -153,7 +153,7 @@ Auga applies ~55 Harmony patches (plus 2 reflective compat blocks). I checked ev
 ### [widgets-1] Localization.GetBoundKeyString throws KeyNotFoundException for the "JoyRStickLeft"/"JoyRStickRight" button defs, and Auga's hover-text key cache calls it for every entry of ZInput.m_buttons
 
 - **Verdict:** confirmed (reviewer confidence 88)
-- **Auga:** C:\Users\user_\Documents\GitHub\Valheim_Creative\Auga\Auga\Hud_Setup.cs:535-545 (`if (_cachedKeyNames.Count == 0) { foreach (var buttonEntry in ZInput.instance.m_buttons) { var bindingDisplay = Localization.instance.GetBoundKeyString(buttonEntry.Key); ...`)
+- **Auga:** Auga\Hud_Setup.cs:535-545 (`if (_cachedKeyNames.Count == 0) { foreach (var buttonEntry in ZInput.instance.m_buttons) { var bindingDisplay = Localization.instance.GetBoundKeyString(buttonEntry.Key); ...`)
 - **Vanilla 1.0:** ZInput.GetBoundKeyString (scratchpad\decomp_assembly_utils\ZInput.cs:2142-2217), ZInput.MapKeyFromPath (ZInput.cs:2660), ZInput.s_gamepadSpriteMap (ZInput.cs:387-618), ZInput.AddGenericGamepadButtons (ZInput.cs:3086-3087); wrapper Localization.GetBoundKeyString (decomp_assembly_guiutils\Localization.cs:471)
 - **Trigger:** Any hover text that contains a bracketed key token (`[E] Use`, `[LMB] Attack` ... i.e. essentially every interactable in the world) the first time Auga builds `_cachedKeyNames`, and again after every `ZInput.Save` (the `ZInput_Save_Patch` postfix at Hud_Setup.cs:573 clears the cache, so it rebuilds after any settings change).
 - **Consequence:** `KeyNotFoundException: The given key 'rightStick_left' was not present in the dictionary.` thrown out of `Localization.GetBoundKeyString`, aborting Auga's hover-text construction mid-loop. `_cachedKeyNames` stays empty (`Count == 0`), so the loop re-enters and re-throws on every hover; the bracketed key glyph lines of the hover text never render.
@@ -163,7 +163,7 @@ Auga applies ~55 Harmony patches (plus 2 reflective compat blocks). I checked ev
 ### [harmony-2] PortInventoryElement does not add the new UIDragHandler, so InventoryGrid.UpdateGui still NREs on every Auga slot rebuild
 
 - **Verdict:** confirmed (reviewer confidence 88)
-- **Auga:** C:\Users\user_\Documents\GitHub\Valheim_Creative\Auga\Auga\PortInventoryElement.cs:15-50 (Setup adds only InventoryElement, Button, UITooltip and stand-in parts)
+- **Auga:** Auga\PortInventoryElement.cs:15-50 (Setup adds only InventoryElement, Button, UITooltip and stand-in parts)
 - **Vanilla 1.0:** InventoryGrid.UpdateGui (decomp\InventoryGrid.cs:245ff), the block that runs when m_width/m_height change
 - **Trigger:** Open the inventory (or any container) so a grid is rebuilt - InventoryGui.UpdateInventory -> InventoryGrid.UpdateInventory -> UpdateGui.
 - **Consequence:** NullReferenceException every frame the grid is rebuilt; the inventory grid is left half-built. This is the exception still present in auga_run4.log after the first PortInventoryElement fix.
@@ -173,7 +173,7 @@ Auga applies ~55 Harmony patches (plus 2 reflective compat blocks). I checked ev
 ### [harmony-3] StoreGui.FillList postfix dereferences TradeItem.m_prefab, which 1.0 allows to be null for player-key shop entries
 
 - **Verdict:** confirmed (reviewer confidence 85)
-- **Auga:** C:\Users\user_\Documents\GitHub\Valheim_Creative\Auga\Auga\Store_Setup.cs:95-112 (FillList_Postfix)
+- **Auga:** Auga\Store_Setup.cs:95-112 (FillList_Postfix)
 - **Vanilla 1.0:** StoreGui.FillList (decomp\StoreGui.cs) and Trader.TradeItem (decomp\Trader.cs:8-34)
 - **Trigger:** Talk to a trader whose item list contains an entry with no item prefab (1.0's `[Header("Player Key Item")]` entries, e.g. the `m_incrementKey == "invrows"` inventory-row purchase).
 - **Consequence:** NullReferenceException in Auga's postfix right after the store list is built, so the store window is left without tooltips and the exception repeats on every Show/buy/sell (each calls FillList).
@@ -184,7 +184,7 @@ Auga applies ~55 Harmony patches (plus 2 reflective compat blocks). I checked ev
 ### [minimap-3] MinimapShowPinNameInputTranspiler.AddSubmitAction NREs on touch input: 1.0 no longer activates the NameField before the injection point and GetComponentInChildren skips inactive objects
 
 - **Verdict:** confirmed (reviewer confidence 82)
-- **Auga:** C:\Users\user_\Documents\GitHub\Valheim_Creative\Auga\Auga\Minimap_Setup.cs:20 (`instance.m_nameInput.GetComponentInChildren<GuiInputFieldSubmit>().m_onSubmit = instance.OnPinTextEntered;`), injected at Minimap_Setup.cs:52-70 immediately before `m_wasFocused = true`
+- **Auga:** Auga\Minimap_Setup.cs:20 (`instance.m_nameInput.GetComponentInChildren<GuiInputFieldSubmit>().m_onSubmit = instance.OnPinTextEntered;`), injected at Minimap_Setup.cs:52-70 immediately before `m_wasFocused = true`
 - **Vanilla 1.0:** Minimap.ShowPinNameInput (scratchpad\decomp\Minimap.cs:809-840, specifically the new guard at :813-816)
 - **Trigger:** On a touchscreen (ZInput.IsTouchActive() true), double-tap the large map to add a pin.
 - **Consequence:** NullReferenceException thrown from inside Minimap.ShowPinNameInput, so `m_wasFocused = true` never runs and the whole pin-naming flow aborts after AddPin — InTextInput() stays false, the virtual keyboard coroutine has already been started, and the map is left in an inconsistent input state.
@@ -195,7 +195,7 @@ Auga applies ~55 Harmony patches (plus 2 reflective compat blocks). I checked ev
 ### [world-ui-1] Store_Setup.FillList postfix dereferences TradeItem.m_prefab, which 1.0 allows to be null for "Player Key Item" entries
 
 - **Verdict:** confirmed (reviewer confidence 78)
-- **Auga:** C:\Users\user_\Documents\GitHub\Valheim_Creative\Auga\Auga\Store_Setup.cs:104-110 (FillList_Postfix); line 109: itemElement.GetComponent<ItemTooltip>().Item = item.m_prefab.m_itemData;
+- **Auga:** Auga\Store_Setup.cs:104-110 (FillList_Postfix); line 109: itemElement.GetComponent<ItemTooltip>().Item = item.m_prefab.m_itemData;
 - **Vanilla 1.0:** StoreGui.FillList (decomp\StoreGui.cs:235-301) and Trader.TradeItem (decomp\Trader.cs)
 - **Trigger:** Player interacts with a trader (Haldor/Hildir) whose item list contains a trade item with no m_prefab - the 1.0 "Player Key Item" form (m_buyKey / m_incrementKey, e.g. the inventory-row upgrade). Re-thrown after every buy and every sell, because both call FillList().
 - **Consequence:** NullReferenceException thrown out of the FillList postfix, propagating out of StoreGui.Show and out of Trader.Interact. The panel is already active and the vanilla list is already built, so the shop appears, but the trader's greeting Say()/m_randomStartTradeFX never run, every item after the offending one loses its Auga ComplexTooltip, and each buy/sell logs another NRE.
@@ -227,7 +227,7 @@ Auga applies ~55 Harmony patches (plus 2 reflective compat blocks). I checked ev
 ### [hud-bars-1] 1.0's new adrenaline bar runs on the untouched vanilla hudroot/adrenalinepanel; Auga has no adrenaline UI and never moves or restyles it
 
 - **Verdict:** confirmed (reviewer confidence 92)
-- **Auga:** C:\Users\user_\Documents\GitHub\Valheim_Creative\Auga\Auga\Hud_Setup.cs:90-131 (Hud_Awake_Postfix stat-bar teardown) and AugaUnity/Assets/Prefabs/HUD.prefab (hudroot has HealthBar, StaminaBar, EitrBar, FoodPanel0-2 — no adrenaline panel)
+- **Auga:** Auga\Hud_Setup.cs:90-131 (Hud_Awake_Postfix stat-bar teardown) and AugaUnity/Assets/Prefabs/HUD.prefab (hudroot has HealthBar, StaminaBar, EitrBar, FoodPanel0-2 — no adrenaline panel)
 - **Vanilla 1.0:** Hud.UpdateAdrenaline (decomp/Hud.cs:1122), called unconditionally from Hud.Update (decomp/Hud.cs:534); fields Hud.m_adrenalineBarRoot/m_adrenalineAnimator/m_adrenalineBarFast/m_adrenalineBarSlow/m_adrenalineText (decomp/Hud.cs:178-186); Hud.SetAdrenalineBarSize; Hud.AdrenalineBarFlash called from Player.AddAdrenaline (decomp/Player.cs:4594)
 - **Trigger:** Any combat. Player.m_maxAdrenaline defaults to 100f (decomp/Player.cs:229) so GetMaxAdrenaline() > 0 always; as soon as adrenaline rises above 0 UpdateAdrenaline stops early-returning and turns the panel on.
 - **Consequence:** No exception. A vanilla-art adrenaline bar fades in at the vanilla bottom-of-screen slot that Auga has emptied (Auga destroyed staminapanel/eitrpanel and moved its own bars to the lower-left), colliding with Auga's StaggerPanel (LowerCenter, y=151) and ActionProgress (LowerCenter, y=226). It carries no MovableHudElement, so the player cannot reposition or hide it from Auga's config, and Auga's own stat-bar stack has no adrenaline readout at all.
@@ -250,7 +250,7 @@ Auga applies ~55 Harmony patches (plus 2 reflective compat blocks). I checked ev
 ### [inventory-3] Grid replacement drops m_onReleased, m_onEnter, OnSetTouchSelection and the OnMoveTo{Upper,Lower}InventoryGrid callbacks
 
 - **Verdict:** confirmed (reviewer confidence 90)
-- **Auga:** C:\Users\user_\Documents\GitHub\Valheim_Creative\Auga\Auga\PlayerInventory_Setup.cs:27-30 (nulls m_onSelected/m_onRightClick on the vanilla grids) and :42-44, :51-53 (re-attaches only those two on the new grids)
+- **Auga:** Auga\PlayerInventory_Setup.cs:27-30 (nulls m_onSelected/m_onRightClick on the vanilla grids) and :42-44, :51-53 (re-attaches only those two on the new grids)
 - **Vanilla 1.0:** InventoryGui.Awake — scratchpad\decomp\InventoryGui.cs:382-403; consumers InventoryGrid.OnDragEnd/OnReleasedOn/OnPointerEnter (decomp\InventoryGrid.cs:497-518), InventoryGrid.UpdateGamepad (decomp\InventoryGrid.cs:136,156), InventoryGrid.SetTouchSelection (decomp\InventoryGrid.cs:612-617)
 - **Trigger:** Gamepad: pushing the stick/d-pad past the top row of the container grid or the bottom row of the player grid to jump between the two grids. Touch: dragging an item onto a slot, hovering a slot while dragging, tapping a slot to select it.
 - **Consequence:** No exception (all four are invoked with `?.Invoke`), but the features are silently dead: gamepad cannot move the selection between the player grid and an open container (MoveToUpper/MoveToLowerInventoryGrid never fire, so SetActiveGroup is never called and the selection sticks at the grid edge); touch drag-release does nothing (m_onReleased -> InventoryGui.OnReleasedItem); the touch drag effects at InventoryGui.OnEnterElement (decomp\InventoryGui.cs:1011-1021) never spawn; and tapping a slot never switches the active UI group (OnSetTouchSelection -> InventoryGui.SetTouchSelection).
@@ -281,7 +281,7 @@ Auga applies ~55 Harmony patches (plus 2 reflective compat blocks). I checked ev
 ### [text-chat-2] DamageText_Setup postfix applies the mySelf colour to every TextType, overwriting 1.0's new Bonus/Blocked/TooHard colours - craft and harvest "+N" bonuses turn red
 
 - **Verdict:** confirmed (reviewer confidence 90)
-- **Auga:** C:\Users\user_\Documents\GitHub\Valheim_Creative\Auga\Auga\DamageText_Setup.cs:31-40 (`if (type == DamageText.TextType.Heal) ... else if (mySelf) { color = text != "0" ? Auga.Colors.PlayerDamage : Auga.Colors.PlayerNoDamage; } else switch (type) {...}`)
+- **Auga:** Auga\DamageText_Setup.cs:31-40 (`if (type == DamageText.TextType.Heal) ... else if (mySelf) { color = text != "0" ? Auga.Colors.PlayerDamage : Auga.Colors.PlayerNoDamage; } else switch (type) {...}`)
 - **Vanilla 1.0:** DamageText.AddInworldText (scratchpad\decomp\DamageText.cs:105-115)
 - **Trigger:** Craft or upgrade an item with a crafting bonus, harvest a Pickable with a bonus, or take a cooking-station bonus - all of which call `DamageText.instance.ShowText(DamageText.TextType.Bonus, pos, "+N", player: true)`.
 - **Consequence:** The floating "+N" bonus is drawn in Auga.Colors.PlayerDamage (player-damage red) instead of 1.0's orange (1, 0.63, 0.24). Same inversion for TextType.Blocked and TextType.TooHard whenever mySelf is true. No exception.
@@ -303,7 +303,7 @@ Auga applies ~55 Harmony patches (plus 2 reflective compat blocks). I checked ev
 ### [pause-texts-2] Auga's SkipIntro menu entry is permanently visible and its onClick calls Menu.OnManualSave instead of Menu.OnSkip
 
 - **Verdict:** confirmed (reviewer confidence 88)
-- **Auga:** C:\Users\user_\Documents\GitHub\Valheim_Creative\Auga\AugaUnity\Assets\Prefabs\AugaMenu.prefab, PrefabInstance &7881465935064588165 (m_Name SkipIntro, ~lines 2955-3216)
+- **Auga:** AugaUnity\Assets\Prefabs\AugaMenu.prefab, PrefabInstance &7881465935064588165 (m_Name SkipIntro, ~lines 2955-3216)
 - **Vanilla 1.0:** Menu.SetButtonsEnabled() (decomp\Menu.cs:250) and Menu.OnSkip() (decomp\Menu.cs:405)
 - **Trigger:** Open the pause menu at any time; the 'Skip intro' entry is listed. Click it.
 - **Consequence:** A 'Skip intro' entry is shown permanently (outside the intro) and clicking it performs a manual world save instead of skipping the intro. Conversely, during the actual intro there is no working way to skip it from the Auga menu. Game.instance.SkipIntro() (new in 1.0, replacing RequestRespawn+Valkyrie.DropPlayer) is never reachable.
@@ -314,7 +314,7 @@ Auga applies ~55 Harmony patches (plus 2 reflective compat blocks). I checked ev
 ### [text-chat-1] AugaTextInput never wires GuiInputField.OnInputSubmit -> TextInput.OnInput, and 1.0 deleted the Enter handling from TextInput.Update, so Enter no longer confirms sign/pet/portal text
 
 - **Verdict:** confirmed (reviewer confidence 88)
-- **Auga:** C:\Users\user_\Documents\GitHub\Valheim_Creative\Auga\AugaUnity\Assets\Prefabs\AugaTextInput.prefab (GuiInputField &7712704899483783889 on panel/TextField, a nested instance of TextField.prefab guid ae0d5c8245b17784e9c15381084fd582); the only two UnityEvent wirings in the whole prefab are at lines 1139-1140 (m_MethodName: OnCancel) and 1324-1325 (m_MethodName: OnEnter), both m_OnClick on the Cancel/OK buttons
+- **Auga:** AugaUnity\Assets\Prefabs\AugaTextInput.prefab (GuiInputField &7712704899483783889 on panel/TextField, a nested instance of TextField.prefab guid ae0d5c8245b17784e9c15381084fd582); the only two UnityEvent wirings in the whole prefab are at lines 1139-1140 (m_MethodName: OnCancel) and 1324-1325 (m_MethodName: OnEnter), both m_OnClick on the Cancel/OK buttons
 - **Vanilla 1.0:** TextInput.Update and TextInput.OnInput (scratchpad\decomp\TextInput.cs:41-61); old body at scratchpad\decomp_old_assembly_valheim\TextInput.cs:41-55
 - **Trigger:** Interact with a sign, a tamed animal or a portal, type a name, press Enter (or Numpad Enter).
 - **Consequence:** Nothing happens - the text is never committed and the panel stays open. The only way to confirm is to click the OK button. No exception, so nothing shows in the log.
@@ -325,7 +325,7 @@ Auga applies ~55 Harmony patches (plus 2 reflective compat blocks). I checked ev
 ### [world-ui-4] EnemyHud_ShowHud_Patch's guard is inverted, so Auga's level_4/5/6 and level_X star displays are unreachable dead code
 
 - **Verdict:** partly (reviewer confidence 88)
-- **Auga:** C:\Users\user_\Documents\GitHub\Valheim_Creative\Auga\Auga\EnemeyHud_Setup.cs:25-28 (`if (c == null || __instance.m_huds.TryGetValue(c, out EnemyHud.HudData _)) { return; }`)
+- **Auga:** Auga\EnemeyHud_Setup.cs:25-28 (`if (c == null || __instance.m_huds.TryGetValue(c, out EnemyHud.HudData _)) { return; }`)
 - **Vanilla 1.0:** EnemyHud.ShowHud (decomp\EnemyHud.cs:126-158), whose last statement is `m_huds.Add(c, value);`
 - **Trigger:** Any creature with level > 3 (3+ stars) coming into hud range - e.g. with CreatureLevelControl, or any world modifier/mod that raises star counts.
 - **Consequence:** The postfix returns immediately on every invocation, because ShowHud has just added `c` to m_huds so TryGetValue always succeeds. The extended star artwork Auga ships (HudBase/level_4, level_5, level_6, level_X with its "x N" Level text, and the same sets on HudBaseBoss and HudMount) is never activated and the level_X clone / `text.text = $"x {level - 1}"` code never runs, so 3+ star creatures show no stars at all.
@@ -337,7 +337,7 @@ Auga applies ~55 Harmony patches (plus 2 reflective compat blocks). I checked ev
 ### [harmony-8] Hud.SetupPieceInfo transpiler re-implementation drops 1.0's free-build-key handling, the $menu_none localization, and leaves a stale snapping icon
 
 - **Verdict:** confirmed (reviewer confidence 88)
-- **Auga:** C:\Users\user_\Documents\GitHub\Valheim_Creative\Auga\Auga\Hud_Setup.cs:349-448 (Hud_SetupPieceInfo_Patch.SetupPieceInfo + Transpiler that replaces the whole body with a call to it)
+- **Auga:** Auga\Hud_Setup.cs:349-448 (Hud_SetupPieceInfo_Patch.SetupPieceInfo + Transpiler that replaces the whole body with a call to it)
 - **Vanilla 1.0:** Hud.SetupPieceInfo (decomp\Hud.cs:1511-1572) and InventoryGui.SetupRequirement (decomp\InventoryGui.cs:1736-1768)
 - **Trigger:** Enter build mode and hover/select any piece; most visible on a world with the `nocraftcost` global key set, or with any station-requiring piece.
 - **Consequence:** (a) requirement amounts flash red even when the world's NoCraftCost key is set, because Auga hardcodes `craft: false` so SetupRequirement checks GlobalKeys.NoBuildCost instead; (b) the missing-station label reads the literal English 'None' instead of the localized '$menu_none'; (c) the station-missing text flashes red even with NoCraftCost set; (d) the snapping icon is never turned off - once shown it stays on the last piece's sprite.
@@ -348,7 +348,7 @@ Auga applies ~55 Harmony patches (plus 2 reflective compat blocks). I checked ev
 ### [harmony-4] No prefix for the new Hud.UpdateAdrenaline, so the untouched vanilla adrenaline bar keeps drawing over Auga's HUD
 
 - **Verdict:** confirmed (reviewer confidence 87)
-- **Auga:** C:\Users\user_\Documents\GitHub\Valheim_Creative\Auga\Auga\Hud_Setup.cs:90-131 (Awake postfix destroys/nulls the health, stamina, food and eitr bars) and Hud_Setup.cs:230-277 (prefixes for UpdateStatusEffects, UpdateFood, SetHealthBarSize, SetStaminaBarSize, UpdateHealth, UpdateStamina, UpdateEitr - there is no UpdateAdrenaline prefix)
+- **Auga:** Auga\Hud_Setup.cs:90-131 (Awake postfix destroys/nulls the health, stamina, food and eitr bars) and Hud_Setup.cs:230-277 (prefixes for UpdateStatusEffects, UpdateFood, SetHealthBarSize, SetStaminaBarSize, UpdateHealth, UpdateStamina, UpdateEitr - there is no UpdateAdrenaline prefix)
 - **Vanilla 1.0:** Hud.UpdateAdrenaline (decomp\Hud.cs:1122-1161), called every frame from Hud.Update; Hud.SetAdrenalineBarSize; new fields m_adrenalineBarRoot/m_adrenalineAnimator/m_adrenalineBarFast/m_adrenalineBarSlow/m_adrenalineText
 - **Trigger:** Gain any adrenaline (1.0 combat mechanic) while playing with Auga.
 - **Consequence:** Vanilla's adrenaline panel is animated and positioned by vanilla code (anchoredPosition (0,130) or (0,320)) on top of Auga's re-laid-out HUD, in vanilla art, un-movable by MovableHudElement; Auga has no adrenaline bar of its own, so the value is shown twice-styled/out of place. No exception (the panel is a sibling, not a child of m_healthPanel, so Auga's destroy loop misses it).
@@ -368,7 +368,7 @@ Auga applies ~55 Harmony patches (plus 2 reflective compat blocks). I checked ev
 ### [hud-bars-4] Auga's food timers show raw Player.Food.m_time; 1.0 converts to real seconds with food.m_time / Game.m_foodRate
 
 - **Verdict:** confirmed (reviewer confidence 85)
-- **Auga:** C:\Users\user_\Documents\GitHub\Valheim_Creative\Auga\AugaUnityLib\PlayerPanelFoodController.cs:111 `var secondsRemaining = Mathf.CeilToInt(food.m_time);` (rendered at line 118-122 as `TimeSpan.FromSeconds(secondsRemaining).ToString("m\\:ss")`) and C:\Users\user_\Documents\GitHub\Valheim_Creative\Auga\AugaUnityLib\ComplexTooltip.cs:719 `var currentTime = TimeSpan.FromSeconds(Mathf.CeilToInt(food.m_time)).ToString(...)` / :715 `durationText` from raw m_foodBurnTime
+- **Auga:** AugaUnityLib\PlayerPanelFoodController.cs:111 `var secondsRemaining = Mathf.CeilToInt(food.m_time);` (rendered at line 118-122 as `TimeSpan.FromSeconds(secondsRemaining).ToString("m\\:ss")`) and AugaUnityLib\ComplexTooltip.cs:719 `var currentTime = TimeSpan.FromSeconds(Mathf.CeilToInt(food.m_time)).ToString(...)` / :715 `durationText` from raw m_foodBurnTime
 - **Vanilla 1.0:** Hud.UpdateFood (decomp/Hud.cs:1037) `float num = food.m_time / Game.m_foodRate;` then `tMP_Text.text = Mathf.CeilToInt(num / 60f) + "m"` / `Mathf.FloorToInt(num) + "s"`; the rate comes from Game.m_foodRate (decomp/Game.cs:204) set by `trySetScalarKey(GlobalKeys.FoodRate, out m_foodRate)` in Game.UpdateWorldRates (decomp/Game.cs:1372); Player.UpdateFood (decomp/Player.cs:2417) `m_foodUpdateTimer += dt * Game.m_foodRate`
 - **Trigger:** Playing any world created with the 1.0 "Food duration" world modifier set to anything other than 1x, then opening the player/inventory panel food list or hovering a food item's tooltip.
 - **Consequence:** No exception. The remaining-time text is wrong by exactly the FoodRate factor — e.g. at 2x food drain m_time falls 2 units per real second, so Auga prints twice the real time left ("20:00" when 10 minutes remain). Auga's own Hud.UpdateFood prefix (Hud_Setup.cs:237-242) returns false, so vanilla's corrected text never renders anywhere as a fallback. The radial CountdownImage fill (PlayerPanelFoodController.cs:110, m_time / m_foodBurnTime) is rate-independent and stays correct, which is why the HUD food icons look fine while the panel text does not.
@@ -388,7 +388,7 @@ Auga applies ~55 Harmony patches (plus 2 reflective compat blocks). I checked ev
 ### [minimap-1] Map pins can no longer be named: the only path to Minimap.OnPinTextEntered is GuiInputFieldSubmit's legacy UnityEngine.Input.GetKeyDown, which is dead in 1.0
 
 - **Verdict:** confirmed (reviewer confidence 85)
-- **Auga:** C:\Users\user_\Documents\GitHub\Valheim_Creative\Auga\AugaUnityLib\GuiInputFieldSubmit.cs:17 (wired by Auga\Minimap_Setup.cs:20 via the ShowPinNameInput transpiler)
+- **Auga:** AugaUnityLib\GuiInputFieldSubmit.cs:17 (wired by Auga\Minimap_Setup.cs:20 via the ShowPinNameInput transpiler)
 - **Vanilla 1.0:** Minimap.OnPinTextEntered / Minimap.ShowPinNameInput / Minimap.Update (scratchpad\decomp\Minimap.cs:893, :809, :698-705)
 - **Trigger:** Open the large map, double-click to drop a pin, type a name, press Enter (or KeypadEnter).
 - **Consequence:** OnPinTextEntered is never called, so the pin keeps the empty name AddPin gave it and no PinNameData is created; the field stays open (GuiInputFieldSubmit.Update re-calls ActivateInputField every frame) until Escape, whose handler in Minimap.Update deliberately does m_nameInput.text = ""; OnPinTextEntered(""). Net effect: pins can be placed but never named. If Unity's active input handling is "Input System Package (New)" the call additionally throws InvalidOperationException out of Update once per frame while the box is open.
@@ -398,7 +398,7 @@ Auga applies ~55 Harmony patches (plus 2 reflective compat blocks). I checked ev
 ### [pause-texts-9] AugaCompendiumController.Update uses legacy UnityEngine.Input, which is dead in Valheim 1.0 - Escape can no longer close the compendium
 
 - **Verdict:** confirmed (reviewer confidence 85)
-- **Auga:** C:\Users\user_\Documents\GitHub\Valheim_Creative\Auga\AugaUnityLib\AugaCompendiumController.cs:153 `if (Input.GetKeyDown(KeyCode.Escape) || ZInput.GetButtonDown("JoyMenu"))`
+- **Auga:** AugaUnityLib\AugaCompendiumController.cs:153 `if (Input.GetKeyDown(KeyCode.Escape) || ZInput.GetButtonDown("JoyMenu"))`
 - **Vanilla 1.0:** Menu.Update() escape gate (decomp\Menu.cs:328, `... && !m_settingsInstance && !m_currentPlayersInstance && ...`) combined with 1.0's switch to the Input System package
 - **Trigger:** Open the pause menu -> Compendium, then press Escape on a keyboard.
 - **Consequence:** Nothing happens. `UnityEngine.Input.GetKeyDown` never fires under 1.0's Input-System-only setup, and because ShowCompendium sets `Menu.instance.m_settingsInstance = gameObject` (AugaCompendiumController.cs:142), Menu.Update's own Escape handler is also gated off. The player must find and click the compendium's HideCompendium button (Compendium.prefab:5118); gamepad users still escape via 'JoyMenu'.
@@ -408,7 +408,7 @@ Auga applies ~55 Harmony patches (plus 2 reflective compat blocks). I checked ev
 ### [main-menu-1] Connection_Setup is the only replacement left in the port that hard-destroys the vanilla object instead of keeping a donor
 
 - **Verdict:** partly (reviewer confidence 85)
-- **Auga:** C:\Users\user_\Documents\GitHub\Valheim_Creative\Auga\Auga\Connection_Setup.cs:13-22
+- **Auga:** Auga\Connection_Setup.cs:13-22
 - **Vanilla 1.0:** ZNet.Awake / ZNet.RPC_ClientHandshake (decomp/ZNet.cs:333, 908-930)
 - **Trigger:** Every game start (ZNet.Awake). Visible when joining any password-protected or slow-to-connect server.
 - **Consequence:** The vanilla PasswordDialog and ConnectingDialog GameObjects are permanently destroyed with no fallback: anything wired inside them in the scene (buttons and their UnityEvents, UIGroupHandler registration, any serialized reference another 1.0 component holds into that branch) is gone, and no null/empty field on Auga's copies is filled from a donor. Auga's two prefabs contain no Button at all, so whatever OK/Cancel affordance vanilla's dialogs had is lost - the only way out of the password prompt is Enter via GuiInputField.OnInputSubmit.
@@ -443,7 +443,7 @@ Auga applies ~55 Harmony patches (plus 2 reflective compat blocks). I checked ev
 ### [harmony-9] AugaLog SpawnPlayer hook reads PlayerProfile.m_firstSpawn (new in 1.0), so the 'arrival' log entry now fires only once in a character's life
 
 - **Verdict:** confirmed (reviewer confidence 82)
-- **Auga:** C:\Users\user_\Documents\GitHub\Valheim_Creative\Auga\Auga\AugaLog_Hooks.cs:8-18 (AugaLog_Hooks.Postfix on Game.SpawnPlayer)
+- **Auga:** Auga\AugaLog_Hooks.cs:8-18 (AugaLog_Hooks.Postfix on Game.SpawnPlayer)
 - **Vanilla 1.0:** Game.SpawnPlayer / Game.UpdateRespawn (decomp\Game.cs:485, 740-747); PlayerProfile.m_firstSpawn (decomp\PlayerProfile.cs:88)
 - **Trigger:** Log into a world with an existing character.
 - **Consequence:** AugaMessageLog.AddArrivalLog is never written again after the character's very first spawn; before 1.0 it appeared on every world join. (No exception - the patch still binds even though SpawnPlayer gained a `bool spawnValkyrie` parameter, because it is patched by name with only one overload.)
@@ -463,7 +463,7 @@ Auga applies ~55 Harmony patches (plus 2 reflective compat blocks). I checked ev
 ### [pause-texts-5] Menu.m_cloudStorageWarning / m_cloudStorageWarningNextSave resolve to children of the inactive donor, so the cloud-storage dialogs can never be shown or acknowledged
 
 - **Verdict:** confirmed (reviewer confidence 80) - crash already prevented by PortCarryOver
-- **Auga:** C:\Users\user_\Documents\GitHub\Valheim_Creative\Auga\AugaUnity\Assets\Prefabs\AugaMenu.prefab:444-445 (`m_cloudStorageWarning: {fileID: 0}`, `m_cloudStorageWarningNextSave: {fileID: 0}`), filled by Auga\PortCarryOver.cs:104-110
+- **Auga:** AugaUnity\Assets\Prefabs\AugaMenu.prefab:444-445 (`m_cloudStorageWarning: {fileID: 0}`, `m_cloudStorageWarningNextSave: {fileID: 0}`), filled by Auga\PortCarryOver.cs:104-110
 - **Vanilla 1.0:** Menu.ShowCloudStorageFullWarning() / OnCloudStorageFullWarningOk() / ShowCloudStorageLowNextSaveWarning() (decomp\Menu.cs:585, :599, :611), reached from OnManualSave, OnQuitYes and OnLogoutYes
 - **Trigger:** Manual Save / Exit / Logout from the pause menu while Steam Cloud (or console) save storage is full - i.e. whenever `SaveSystem.CanSaveToCloudStorage(...)` returns false.
 - **Consequence:** `m_cloudStorageWarning.SetActive(true)` activates `CloudStorageFullMovingSave` inside the donor, whose root was SetActive(false) - nothing renders. The callback list is filled but OnCloudStorageFullWarningOk can never be clicked, so the save/quit/logout the player asked for silently never happens and there is no on-screen explanation.
@@ -473,7 +473,7 @@ Auga applies ~55 Harmony patches (plus 2 reflective compat blocks). I checked ev
 ### [inventory-4] m_uiGroups[2] and m_uiGroups[3] are the same UIGroupHandler, so SetActiveGroup(m_uiGroups[3]) deactivates the right panel instead of activating it
 
 - **Verdict:** partly (reviewer confidence 78)
-- **Auga:** C:\Users\user_\Documents\GitHub\Valheim_Creative\Auga\Auga\PlayerInventory_Setup.cs:132-139 (rightPanel.GetComponent<UIGroupHandler>() supplied for both index 2 and index 3)
+- **Auga:** Auga\PlayerInventory_Setup.cs:132-139 (rightPanel.GetComponent<UIGroupHandler>() supplied for both index 2 and index 3)
 - **Vanilla 1.0:** InventoryGui.SetActiveGroup — scratchpad\decomp\InventoryGui.cs:622-645; callers at InventoryGui.cs:889, 1390, 2061, 2111, 2341-2367, 2563, 2571; gamepad gate at InventoryGui.cs:615-618
 - **Trigger:** Any click on a recipe, the craft button, the repair button, a grid slot, or the skills/texts/trophies/PVP buttons — every one of these routes through SetActiveGroup.
 - **Consequence:** No exception (the run3 IndexOutOfRangeException at InventoryGui.OnTabCraftPressed is indeed fixed), but the right panel's UIGroupHandler ends up with m_userActive = false exactly when it should be active: the loop `for (i...) m_uiGroups[i].SetActive(i == m_activeGroup)` writes true at i=2 and then false at i=3 on the same object. Consequences: UIGroupHandler.IsActive stays false for the right panel, so its gamepad default-element focus and m_enableWhenActiveAndGamepad never engage; and because SetActiveGroup(UIGroupHandler) resolves through Array.IndexOf it always yields 2, so m_activeGroup can never become 3 and `if (m_activeGroup == 3) UpdateRecipeGamepadInput();` never runs — gamepad crafting navigation is dead. Mouse clicking still works: none of PlayerPanel/ContainerPanel/RightPanel has a CanvasGroup, so UIGroupHandler.Update's `m_canvasGroup.interactable = flag` line is skipped and no Selectable is disabled.
@@ -485,7 +485,7 @@ Auga applies ~55 Harmony patches (plus 2 reflective compat blocks). I checked ev
 ### [inventory-6] InventoryGui.m_touchSplitAnchor (new in 1.0) points at root/Player/TouchSplitAnchor, which Auga turns into a hidden donor
 
 - **Verdict:** confirmed (reviewer confidence 78) - crash already prevented by PortCarryOver
-- **Auga:** C:\Users\user_\Documents\GitHub\Valheim_Creative\Auga\Auga\PlayerInventory_Setup.cs:40 (`__instance.Replace("root/Player", Auga.Assets.InventoryScreen, "root/Player")`) via Extensions.cs:89 PortCarryOver.MakeDonor
+- **Auga:** Auga\PlayerInventory_Setup.cs:40 (`__instance.Replace("root/Player", Auga.Assets.InventoryScreen, "root/Player")`) via Extensions.cs:89 PortCarryOver.MakeDonor
 - **Vanilla 1.0:** InventoryGui.UpdateItemDrag — scratchpad\decomp\InventoryGui.cs:790-795 (`if (IsSplitDropping) m_dragGo.transform.position = m_touchSplitAnchor.position;`)
 - **Trigger:** Touch input only: split a stack (long-press / shift equivalent) and then carry the split stack, which sets IsSplitDropping = true.
 - **Consequence:** No exception — the donor's transform is still alive — but the dragged split stack is positioned at the anchor inside the hidden, differently-laid-out 'Player_VanillaDonor' branch rather than anywhere in Auga's layout, so it renders in the wrong place. Exactly the README's 'field filled with a HIDDEN donor object where the player actually needs to see it' gap, and PortDiagnostics reports it as fine ('InventoryGui: 0 destroyed, 0 unassigned UI references', auga_run4.log:245) because the reference is assigned.
@@ -506,7 +506,7 @@ Auga applies ~55 Harmony patches (plus 2 reflective compat blocks). I checked ev
 ### [pause-texts-6] Menu.m_startScene (new SceneReference struct) cannot be carried over, so OnCloudStorageLowNextSaveWarningOk has no scene to load
 
 - **Verdict:** partly (reviewer confidence 72)
-- **Auga:** C:\Users\user_\Documents\GitHub\Valheim_Creative\Auga\Auga\PortCarryOver.cs:104-119 (only UnityEngine.Object fields and Object collections are filled); AugaMenu.prefab has no `m_startScene` key
+- **Auga:** Auga\PortCarryOver.cs:104-119 (only UnityEngine.Object fields and Object collections are filled); AugaMenu.prefab has no `m_startScene` key
 - **Vanilla 1.0:** Menu.OnCloudStorageLowNextSaveWarningOk() (decomp\Menu.cs:619-622) -> SystemResourceManager.FastLoadScene(m_startScene)
 - **Trigger:** Cloud storage runs low during an autosave (SaveFinished -> ShowCloudStorageLowNextSaveWarning) and the player presses OK on the resulting dialog.
 - **Consequence:** `m_startScene` is a default-constructed `SoftReferenceableAssets.SceneManagement.SceneReference`, so FastLoadScene gets an empty reference - the return to the start scene fails instead of loading "start" (0.217 hard-coded `SceneManager.LoadScene("start")`, which needed no serialized data).
@@ -528,7 +528,7 @@ Auga applies ~55 Harmony patches (plus 2 reflective compat blocks). I checked ev
 ### [harmony-13] SkillsDialog_Patch stacks three [HarmonyPatch(nameof(...))] attributes on one prefix, so only the last target is actually patched
 
 - **Verdict:** partly (reviewer confidence 70)
-- **Auga:** C:\Users\user_\Documents\GitHub\Valheim_Creative\Auga\Auga\SkillsDialog_Patch.cs:11-18 (Update_Prefix carries [HarmonyPatch(nameof(SkillsDialog.Update))], [HarmonyPatch(nameof(SkillsDialog.OnClose))] and [HarmonyPatch(nameof(SkillsDialog.SkillClicked))])
+- **Auga:** Auga\SkillsDialog_Patch.cs:11-18 (Update_Prefix carries [HarmonyPatch(nameof(SkillsDialog.Update))], [HarmonyPatch(nameof(SkillsDialog.OnClose))] and [HarmonyPatch(nameof(SkillsDialog.SkillClicked))])
 - **Vanilla 1.0:** SkillsDialog.Update (decomp\SkillsDialog.cs:70), SkillsDialog.OnClose (:155), SkillsDialog.SkillClicked (:160)
 - **Trigger:** Open Auga's Skills tab and press the vanilla close binding, or hold a gamepad stick while it is open.
 - **Consequence:** Harmony merges multiple HarmonyPatch attributes on one method into a single target spec (last non-null field wins), so only SkillsDialog.SkillClicked is prefixed. Vanilla SkillsDialog.OnClose still runs and calls `base.gameObject.SetActive(false)` on the object Auga re-parented as its Skills tab content, and vanilla Update still runs (harmless today only because Auga's transpiled Setup leaves m_elements empty, so both `if (... m_elements.Count > 0)` branches are skipped).
@@ -550,7 +550,7 @@ Auga applies ~55 Harmony patches (plus 2 reflective compat blocks). I checked ev
 ### [text-chat-7] ChatWindowController still drives chat focus with legacy UnityEngine.Input while 1.0 moved every Chat/Terminal input read to ZInput
 
 - **Verdict:** partly (reviewer confidence 68)
-- **Auga:** C:\Users\user_\Documents\GitHub\Valheim_Creative\Auga\AugaUnityLib\ChatWindowController.cs:22-24 (`if (Input.GetKeyDown(KeyCode.Mouse0) || Input.GetKey(KeyCode.Mouse1) || Input.GetKeyDown(KeyCode.Escape) || ZInput.GetButtonDown("JoyButtonB") || ...)`) and lines 32-42 (the re-focus block)
+- **Auga:** AugaUnityLib\ChatWindowController.cs:22-24 (`if (Input.GetKeyDown(KeyCode.Mouse0) || Input.GetKey(KeyCode.Mouse1) || Input.GetKeyDown(KeyCode.Escape) || ZInput.GetButtonDown("JoyButtonB") || ...)`) and lines 32-42 (the re-focus block)
 - **Vanilla 1.0:** Chat.Update (scratchpad\decomp\Chat.cs, `if (ZInput.GetKeyDown(KeyCode.Mouse0) || ZInput.GetKey(KeyCode.Mouse1) || ZInput.GetKeyDown(KeyCode.Escape) || ...)`) and the opening gate `... && !Hud.IsPieceSelectionVisible() && DemoMode.Disabled`
 - **Trigger:** Any frame the Auga chat input object is active; the piece-selection case triggers by opening the build wheel while chat is open.
 - **Consequence:** Chat close/blur is decided from the legacy input path instead of ZInput, so it bypasses ZInput's remapping, its input-source arbitration and its blocking; and because the controller unconditionally calls `m_input.ActivateInputField()` every frame the field is active, it also defeats 1.0's new `m_doubleOpenForVirtualKeyboard`/`m_input.Select()` branch. It also lacks 1.0's new `!Hud.IsPieceSelectionVisible() && DemoMode.Disabled` gate.
@@ -562,7 +562,7 @@ Auga applies ~55 Harmony patches (plus 2 reflective compat blocks). I checked ev
 ### [pause-texts-13] The vanilla Menu donor keeps its SavingFinished/WorldSaveFinished subscription, so Menu.SaveFinished now runs on two Menu instances
 
 - **Verdict:** confirmed (reviewer confidence 65)
-- **Auga:** C:\Users\user_\Documents\GitHub\Valheim_Creative\Auga\Auga\PauseMenu_Setup.cs:237-255 (Menu_Start_Patch.Postfix runs AFTER the vanilla Menu.Start has subscribed, then keeps that object alive via PortCarryOver.MakeDonor instead of destroying it)
+- **Auga:** Auga\PauseMenu_Setup.cs:237-255 (Menu_Start_Patch.Postfix runs AFTER the vanilla Menu.Start has subscribed, then keeps that object alive via PortCarryOver.MakeDonor instead of destroying it)
 - **Vanilla 1.0:** Menu.Start() (decomp\Menu.cs:126-133), Menu.OnDestroy() (decomp\Menu.cs:199-204), Menu.SaveFinished() (decomp\Menu.cs:206-214)
 - **Trigger:** Any world/profile save while cloud (or console) storage is low, i.e. whenever `SaveFinished` finds `!CanSaveToCloudStorage()`.
 - **Consequence:** Both the donor Menu and the Auga Menu have `PlayerProfile.SavingFinished`/`ZNet.WorldSaveFinished` handlers, because the donor is only SetActive(false) and OnDestroy never runs. SaveFinished therefore fires twice, and on the low-storage path each one calls `ShowCloudStorageLowNextSaveWarning()` -> `Logout()` -> `Game.instance.Logout(...)` - a double logout request. Before the port Auga destroyed the vanilla Menu, so OnDestroy unsubscribed it.
@@ -616,7 +616,7 @@ Auga applies ~55 Harmony patches (plus 2 reflective compat blocks). I checked ev
 ### [main-menu-3] AugaPassword.prefab and AugaConnecting.prefab have no UIGroupHandler, unlike every other Auga dialog prefab
 
 - **Verdict:** partly (reviewer confidence 45)
-- **Auga:** C:\Users\user_\Documents\GitHub\Valheim_Creative\Auga\AugaUnity\Assets\Prefabs\AugaPassword.prefab and AugaConnecting.prefab (roots carry only RectTransform, CanvasRenderer, Localize)
+- **Auga:** AugaUnity\Assets\Prefabs\AugaPassword.prefab and AugaConnecting.prefab (roots carry only RectTransform, CanvasRenderer, Localize)
 - **Vanilla 1.0:** UIGamePad.IsInteractive / UIGamePad.Update (decomp/UIGamePad.cs:36-76) and UIGroupHandler (decomp_assembly_guiutils/UIGroupHandler.cs)
 - **Trigger:** Joining a password-protected server while playing on a gamepad.
 - **Consequence:** 1.0's UIGamePad resolves its group with `m_group = GetComponentInParent<UIGroupHandler>()` and returns false from IsInteractive() when that group is not active; with no UIGroupHandler on Auga's dialog the nearest one is whatever scene ancestor exists, which is not activated when the dialog opens. Expected effect: the gamepad hint on the password field never appears, the dialog never takes gamepad focus/default element, and it does not raise group priority to block the UI behind it.
@@ -630,7 +630,7 @@ Auga applies ~55 Harmony patches (plus 2 reflective compat blocks). I checked ev
 ### [main-menu-2] ZNet is in neither PortDiagnostics.TargetMethods() nor PortHierarchyDump.TargetMethods(), so the one live swap in this area has zero coverage
 
 - **Verdict:** confirmed (reviewer confidence 95)
-- **Auga:** C:\Users\user_\Documents\GitHub\Valheim_Creative\Auga\Auga\PortDiagnostics.cs:23-36 and PortHierarchyDump.cs:22-37
+- **Auga:** Auga\PortDiagnostics.cs:23-36 and PortHierarchyDump.cs:22-37
 - **Vanilla 1.0:** ZNet.Awake (decomp/ZNet.cs:333)
 - **Trigger:** Every game start with [Debug] PortDiagnostics = true.
 - **Consequence:** No `ZNet_vanilla.txt` is ever written, so nobody can see what the untouched 1.0 PasswordDialog/ConnectingDialog contained, and no "N destroyed, N unassigned" line is emitted for ZNet. The two dialogs Auga replaces are the only replaced UI in the build with no diagnostic at all - which is exactly why finding 1 and finding 3 cannot be settled from the materials on disk.
@@ -640,7 +640,7 @@ Auga applies ~55 Harmony patches (plus 2 reflective compat blocks). I checked ev
 ### [main-menu-6] Every text element in Auga's main-menu prefabs is legacy UnityEngine.UI.Text while 1.0 FejdStartup declares all of them TMP_Text
 
 - **Verdict:** confirmed (reviewer confidence 95)
-- **Auga:** C:\Users\user_\Documents\GitHub\Valheim_Creative\Auga\AugaUnity\Assets\Prefabs\MainMenu.prefab (28 UI.Text refs), MainMenu\SelectCharacter.prefab (5), MainMenu\NewCharacterPanel.prefab (7), Credits.prefab (19), MainMenu\WorldListElement.prefab (2), MainMenu\ServerListElement.prefab (3) - 0 TextMeshProUGUI refs in any of them; the assignments are MainMenu_Setup.cs:46, 57, 73, 80, 130, 133, 150, 186, 187
+- **Auga:** AugaUnity\Assets\Prefabs\MainMenu.prefab (28 UI.Text refs), MainMenu\SelectCharacter.prefab (5), MainMenu\NewCharacterPanel.prefab (7), Credits.prefab (19), MainMenu\WorldListElement.prefab (2), MainMenu\ServerListElement.prefab (3) - 0 TextMeshProUGUI refs in any of them; the assignments are MainMenu_Setup.cs:46, 57, 73, 80, 130, 133, 150, 186, 187
 - **Vanilla 1.0:** FejdStartup field declarations (decomp/FejdStartup.cs:41, 49, 195, 199, 204, 208, 210, 212) and FejdStartup.UpdateCharacterList (decomp/FejdStartup.cs:2711)
 - **Trigger:** Re-enabling MainMenu_Setup's block.
 - **Consequence:** The whole block fails to compile: `m_versionLabel`, `m_connectionFailedError`, `m_passwordError`, `m_removeWorldName`, `m_removeCharacterName`, `m_csName`, `m_csFileSource`, `m_csSourceInfo` are `TMP_Text` in 1.0 but MainMenu_Setup assigns `GetComponent<Text>()`; `m_serverPassword`, `m_newWorldName`, `m_newWorldSeed`, `m_csNewCharacterName` are `GuiInputField` but MainMenu_Setup assigns `GetComponent<InputField>()`. Even after the C# is retyped, the prefabs supply no TMP components for the labels, so the fields would be null.
@@ -650,7 +650,7 @@ Auga applies ~55 Harmony patches (plus 2 reflective compat blocks). I checked ev
 ### [pause-texts-8] TextsDialog.UpdateTextsList prefix returns false, so 1.0's new AddStats() page ($inventory_stats) never exists under Auga
 
 - **Verdict:** confirmed (reviewer confidence 93)
-- **Auga:** C:\Users\user_\Documents\GitHub\Valheim_Creative\Auga\Auga\PauseMenu_Setup.cs:288-308 (TextsDialog_Patch.UpdateTextsList_Prefix returns false)
+- **Auga:** Auga\PauseMenu_Setup.cs:288-308 (TextsDialog_Patch.UpdateTextsList_Prefix returns false)
 - **Vanilla 1.0:** TextsDialog.UpdateTextsList() -> AddStats() (decomp\TextsDialog.cs:207-218, :255-366)
 - **Trigger:** Open the Auga compendium (pause menu -> Compendium) and look for the player-statistics page.
 - **Consequence:** The whole '$inventory_stats' entry added in 1.0 - cheat flag, per-difficulty PlayerStatType totals, known worlds with playtime, enemy kill modifiers, items found / crafted / picked - is silently absent. Auga's replacement list only contains the player's known texts. AddStats() is also the only caller of its ZLog dump, so the log line is lost too.
@@ -670,7 +670,7 @@ Auga applies ~55 Harmony patches (plus 2 reflective compat blocks). I checked ev
 ### [pause-texts-4] Menu.m_gamepadRoot and the new m_gamepadMapController are filled from the inactive donor, so 1.0's gamepad button-map overlay never appears in the pause menu
 
 - **Verdict:** confirmed (reviewer confidence 92) - crash already prevented by PortCarryOver
-- **Auga:** C:\Users\user_\Documents\GitHub\Valheim_Creative\Auga\AugaUnity\Assets\Prefabs\AugaMenu.prefab:449 (`m_gamepadRoot: {fileID: 0}`); no GamepadMapController anywhere in the bundle. Filled by Auga\PortCarryOver.cs:104-110 via Auga\PauseMenu_Setup.cs:251-252.
+- **Auga:** AugaUnity\Assets\Prefabs\AugaMenu.prefab:449 (`m_gamepadRoot: {fileID: 0}`); no GamepadMapController anywhere in the bundle. Filled by Auga\PortCarryOver.cs:104-110 via Auga\PauseMenu_Setup.cs:251-252.
 - **Vanilla 1.0:** Menu.HandleInputLayoutChanged() (decomp\Menu.cs:136-146), called from Menu.Show() (decomp\Menu.cs:245) and from ZInput.OnInputLayoutChanged
 - **Trigger:** Open the pause menu with a gamepad connected/active.
 - **Consequence:** `m_gamepadRoot.gameObject.SetActive(true)` and `m_gamepadMapController.Show(ZInput.GetActiveLayout(), ...)` operate on `MenuRoot/GamepadMap` / `MenuRoot/GamepadMap/GamepadMap` inside the donor GameObject, which PortCarryOver.MakeDonor left `SetActive(false)`. The whole 1.0 gamepad control-map overlay is invisible; gamepad players get no button legend in the pause menu. (Currently masked because Show() throws earlier at SetButtonsEnabled, but it will surface the moment that is fixed.)
@@ -680,7 +680,7 @@ Auga applies ~55 Harmony patches (plus 2 reflective compat blocks). I checked ev
 ### [pause-texts-10] 1.0's Achievements panel has no entry point under Auga: root/Info is hidden as a donor and its Auga replacement is commented out
 
 - **Verdict:** confirmed (reviewer confidence 92)
-- **Auga:** C:\Users\user_\Documents\GitHub\Valheim_Creative\Auga\Auga\PlayerInventory_Setup.cs:121 `PortCarryOver.MakeDonor(__instance.transform.Find("root/Info").gameObject);` with the rebuild block commented out at lines 122-126
+- **Auga:** Auga\PlayerInventory_Setup.cs:121 `PortCarryOver.MakeDonor(__instance.transform.Find("root/Info").gameObject);` with the rebuild block commented out at lines 122-126
 - **Vanilla 1.0:** InventoryGui.OnOpenAchievements() / UpdateAchievementsList() / AchievementsGui (decomp\InventoryGui.cs:2376-2380, :2433-2528)
 - **Trigger:** Open the inventory and look for the Achievements button that 1.0 added next to Texts / Skills / Trophies.
 - **Consequence:** `OnOpenAchievements()` is only ever invoked from the serialized onClick of `root/Info/Achievements`, and that whole branch is SetActive(false). The entire achievements feature added in 1.0 - completion rate, tiers, secret achievements, cheated-run warnings, the details pane - is unreachable in-game under Auga. (Skills, Texts, Trophies and PVP are also removed from root/Info but Auga re-implements each of them; Achievements has no Auga equivalent.)
@@ -690,7 +690,7 @@ Auga applies ~55 Harmony patches (plus 2 reflective compat blocks). I checked ev
 ### [pause-texts-7] 1.0's new Invite Friends menu entry is unreachable - AugaMenu has no such button and m_inviteButton is filled from the hidden donor
 
 - **Verdict:** confirmed (reviewer confidence 90) - crash already prevented by PortCarryOver
-- **Auga:** C:\Users\user_\Documents\GitHub\Valheim_Creative\Auga\AugaUnity\Assets\Prefabs\AugaMenu.prefab (MenuEntries children are only DividerMedium/CloseButton, Compendium, Save, LastTimeSaved, CurrentPlayerList, SkipIntro, Settings, Logout, Exit); filled via Auga\PauseMenu_Setup.cs:251-252
+- **Auga:** AugaUnity\Assets\Prefabs\AugaMenu.prefab (MenuEntries children are only DividerMedium/CloseButton, Compendium, Save, LastTimeSaved, CurrentPlayerList, SkipIntro, Settings, Logout, Exit); filled via Auga\PauseMenu_Setup.cs:251-252
 - **Vanilla 1.0:** Menu.SetButtonsEnabled() (decomp\Menu.cs:254-255) and Menu.InviteFriends() (decomp\Menu.cs:436-443)
 - **Trigger:** Host a multiplayer session and open the pause menu, expecting the 1.0 'Invite friends' entry.
 - **Consequence:** `m_inviteButton.gameObject.SetActive(active)` toggles `MenuRoot/Menu/MenuEntries/InviteFriends` inside the inactive donor. The Auga pause menu shows no Invite entry, so `PlatformManager.DistributionPlatform.UIProvider.InviteUsers.Open()` can never be invoked from the game.
@@ -700,7 +700,7 @@ Auga applies ~55 Harmony patches (plus 2 reflective compat blocks). I checked ev
 ### [main-menu-5] ServerListElement.prefab cannot satisfy 1.0's ServerListElement constructor, and the whole join tab moved out of FejdStartup into ServerListGui
 
 - **Verdict:** confirmed (reviewer confidence 90)
-- **Auga:** C:\Users\user_\Documents\GitHub\Valheim_Creative\Auga\AugaUnity\Assets\Prefabs\MainMenu\ServerListElement.prefab; loaded every start at Auga\Auga.cs:531, consumed only by the commented-out MainMenu_Setup.cs:127 and the join-tab wiring at MainMenu_Setup.cs:122-177
+- **Auga:** AugaUnity\Assets\Prefabs\MainMenu\ServerListElement.prefab; loaded every start at Auga\Auga.cs:531, consumed only by the commented-out MainMenu_Setup.cs:127 and the join-tab wiring at MainMenu_Setup.cs:122-177
 - **Vanilla 1.0:** ServerListElement..ctor (decomp/ServerListElement.cs:39-55) and ServerListGui (decomp/ServerListGui.cs)
 - **Trigger:** Any attempt to restore Auga's join/server-browser tab on 1.0.
 - **Consequence:** `new ServerListElement(element)` throws NRE at `m_element.transform.Find("modifiers").GetComponent<TMP_Text>()`; `status` and `crossplay` are also absent, `m_serverName = GetComponentInChildren<TMP_Text>()` returns null, and `m_tooltip.m_gamepadFocusObject = ...` needs a UITooltip plus a `selected` child. Separately the commented Auga code targets FejdStartup fields that do not exist in 1.0 at all, so it cannot even compile. Auga's server browser is therefore unrecoverable without new prefab work.
@@ -710,7 +710,7 @@ Auga applies ~55 Harmony patches (plus 2 reflective compat blocks). I checked ev
 ### [harmony-6] TextsDialog.UpdateTextsList prefix returns false and so drops 1.0's new AddStats() page from the compendium
 
 - **Verdict:** confirmed (reviewer confidence 90)
-- **Auga:** C:\Users\user_\Documents\GitHub\Valheim_Creative\Auga\Auga\PauseMenu_Setup.cs:288-308 (TextsDialog_Patch.UpdateTextsList_Prefix)
+- **Auga:** Auga\PauseMenu_Setup.cs:288-308 (TextsDialog_Patch.UpdateTextsList_Prefix)
 - **Vanilla 1.0:** TextsDialog.UpdateTextsList -> AddStats() (decomp\TextsDialog.cs; AddStats is a +108-line addition in auga_audit\diffs\TextsDialog.diff)
 - **Trigger:** Open the compendium / texts list (Auga's Compendium button, or the vanilla Texts dialog).
 - **Consequence:** The new 1.0 '$inventory_stats' entry (per-difficulty player stats, known worlds, kills, items found, crafts, pickables, cheat flag) never appears under Auga. No exception.
@@ -720,7 +720,7 @@ Auga applies ~55 Harmony patches (plus 2 reflective compat blocks). I checked ev
 ### [hud-bars-2] Hud.m_loadingIndicator still points into the hidden LoadingBlack_VanillaDonor; Auga's LoadingBlack has no LoadingIndicator, so 1.0's world-generation progress is never visible
 
 - **Verdict:** confirmed (reviewer confidence 88) - crash already prevented by PortCarryOver
-- **Auga:** C:\Users\user_\Documents\GitHub\Valheim_Creative\Auga\Auga\Hud_Setup.cs:49-56 — `var loadingScreen = __instance.Replace("LoadingBlack", Auga.Assets.Hud);` then reassigns m_loadingScreen, m_loadingProgress, m_sleepingProgress, m_teleportingProgress, m_loadingImage, m_loadingTip — m_loadingIndicator is not reassigned. AugaUnity/Assets/Prefabs/HUD.prefab: LoadingBlack/Loading has only Image, TopFade, BottomFade, text_darken, Tip.
+- **Auga:** Auga\Hud_Setup.cs:49-56 — `var loadingScreen = __instance.Replace("LoadingBlack", Auga.Assets.Hud);` then reassigns m_loadingScreen, m_loadingProgress, m_sleepingProgress, m_teleportingProgress, m_loadingImage, m_loadingTip — m_loadingIndicator is not reassigned. AugaUnity/Assets/Prefabs/HUD.prefab: LoadingBlack/Loading has only Image, TopFade, BottomFade, text_darken, Tip.
 - **Vanilla 1.0:** Hud.m_loadingIndicator (decomp/Hud.cs:223) consumed by Hud.UpdateProgressIndicator (decomp/Hud.cs:684-701: `m_loadingIndicator.SetProgress(ZoneSystem.instance.GenerateLocationsProgress)`, `SetShowProgress(flag)`, `SetText("$menu_generating")`), called from Hud.UpdateBlackScreen when `Game.instance.WaitingForRespawn() && !CinematicsManager.IsPlaying()`
 - **Trigger:** Hosting or playing singleplayer on a world whose locations are not yet generated — i.e. the black loading screen on first entry to a new world (UpdateProgressIndicator early-returns unless `ZNet.instance.IsServer()`).
 - **Consequence:** No exception (the donor component is alive, just parented under an inactive GameObject). SetProgress/SetShowProgress/SetText all run against a hidden object, so the 1.0 "$menu_generating" spinner and generation progress bar never appear — the player sees only Auga's loading art and a tip, with no indication the world is still generating.
@@ -731,7 +731,7 @@ Auga applies ~55 Harmony patches (plus 2 reflective compat blocks). I checked ev
 ### [minimap-2] The 1.0 Ping pin type is unreachable: Auga's large map prefab has no IconPingPanel, so m_selectedIconPing / m_pingImageObject / m_touchPingPanel all resolve into the hidden large_VanillaDonor
 
 - **Verdict:** confirmed (reviewer confidence 88) - crash already prevented by PortCarryOver
-- **Auga:** C:\Users\user_\Documents\GitHub\Valheim_Creative\Auga\Auga\Minimap_Setup.cs:115-129 (assigns m_selectedIcon0..4/Boss/Death and rebuilds m_selectedIcons, never m_selectedIconPing) and :156-170 (no listener for OnPressedPingIcon); prefab AugaUnity\Assets\Prefabs\HUD.prefab, object HUD/hudroot/MiniMap/large — children are MapBG, large_map, PublicPanel, SharedPanel, PingPanel, IconPanel, IconDeath, IconBoss, biome, GamepadCrosshair; no IconPingPanel
+- **Auga:** Auga\Minimap_Setup.cs:115-129 (assigns m_selectedIcon0..4/Boss/Death and rebuilds m_selectedIcons, never m_selectedIconPing) and :156-170 (no listener for OnPressedPingIcon); prefab AugaUnity\Assets\Prefabs\HUD.prefab, object HUD/hudroot/MiniMap/large — children are MapBG, large_map, PublicPanel, SharedPanel, PingPanel, IconPanel, IconDeath, IconBoss, biome, GamepadCrosshair; no IconPingPanel
 - **Vanilla 1.0:** Minimap.SelectIcon / Minimap.OnPressedPingIcon / Minimap.OnEnable / Minimap.TouchLayoutChanged / Minimap.Start (scratchpad\decomp\Minimap.cs:2615-2624, :2534, :462-468, :1200-1207, :568)
 - **Trigger:** Open the large map and look for the ping-pin selector next to the pin icons; or (touch) expect the ping panel to appear when the touch layout activates.
 - **Consequence:** PinType.Ping can never be selected, so the 1.0 feature "double-click the map to send a ping to your group" (Minimap.OnMapDblClick -> Chat.instance.SendPing) is dead under Auga — only middle-click and the gamepad JoyButtonX path remain. m_pingImageObject.sprite = m_pingIcon and m_selectedIconPing.enabled = ... both operate on Images inside the inactive large_VanillaDonor, so they render nowhere. No exception.
@@ -765,7 +765,7 @@ Auga applies ~55 Harmony patches (plus 2 reflective compat blocks). I checked ev
 ### [inventory-5] InventoryGrid.m_ensureVisible (new in 1.0) is null on both Auga grids; the container grid also lacks ScrollRect/ScrollRectEnsureVisible
 
 - **Verdict:** confirmed (reviewer confidence 85)
-- **Auga:** C:\Users\user_\Documents\GitHub\Valheim_Creative\Auga\AugaUnity\Assets\Prefabs\PlayerPanel.prefab:619-628 and ContainerPanel.prefab:1803-1812 (InventoryGrid, m_Script fileID 1878785250 — serialized keys are only m_tooltipAnchor, m_elementPrefab, m_gridRoot, m_scrollbar, m_uiGroup, m_elementSpace)
+- **Auga:** AugaUnity\Assets\Prefabs\PlayerPanel.prefab:619-628 and ContainerPanel.prefab:1803-1812 (InventoryGrid, m_Script fileID 1878785250 — serialized keys are only m_tooltipAnchor, m_elementPrefab, m_gridRoot, m_scrollbar, m_uiGroup, m_elementSpace)
 - **Vanilla 1.0:** InventoryGrid.UpdateGamepad — scratchpad\decomp\InventoryGrid.cs:164-172 (`if (m_ensureVisible != null) m_ensureVisible.CenterOnItem(gamepadSelectedElement);`)
 - **Trigger:** Gamepad: moving the selection down a container whose contents are taller than the visible panel.
 - **Consequence:** No exception (the call is null-guarded), but the scroll view never follows the gamepad selection, so the selected slot can move off-screen with no way to see it. Vanilla 1.0 puts ScrollRect + ScrollRectEnsureVisible on the container grid for exactly this.
@@ -775,7 +775,7 @@ Auga applies ~55 Harmony patches (plus 2 reflective compat blocks). I checked ev
 ### [text-chat-4] Auga's TextViewer Raven style is a stub: m_ravenRoot is 'Dummy/DummyRaven' with no AnimatorController under a parent that is never activated
 
 - **Verdict:** confirmed (reviewer confidence 85)
-- **Auga:** C:\Users\user_\Documents\GitHub\Valheim_Creative\Auga\AugaUnity\Assets\Prefabs\AugaTextViewer.prefab lines 61-63: `m_ravenRoot: {fileID: 8254342561331129535}` (= AugaTextViewer/Dummy/DummyRaven), `m_ravenTopic: {fileID: 8173622406815899983}` (= Dummy/topic), `m_ravenText: {fileID: 5863612720995732470}` (= Dummy/DummyText). The Animator on DummyRaven (&5662895526664626131, line 1605) has `m_Controller: {fileID: 0}`, and its parent GameObject "Dummy" (&6472783780718418713) has `m_IsActive: 0`.
+- **Auga:** AugaUnity\Assets\Prefabs\AugaTextViewer.prefab lines 61-63: `m_ravenRoot: {fileID: 8254342561331129535}` (= AugaTextViewer/Dummy/DummyRaven), `m_ravenTopic: {fileID: 8173622406815899983}` (= Dummy/topic), `m_ravenText: {fileID: 5863612720995732470}` (= Dummy/DummyText). The Animator on DummyRaven (&5662895526664626131, line 1605) has `m_Controller: {fileID: 0}`, and its parent GameObject "Dummy" (&6472783780718418713) has `m_IsActive: 0`.
 - **Vanilla 1.0:** TextViewer.Awake / Hide / IsVisible / ShowText case Style.Raven (scratchpad\decomp\TextViewer.cs:56-66, 94-136, 141-152)
 - **Trigger:** Every frame: TextViewer.LateUpdate -> IsVisible() -> `m_animatorRaven.GetBool(s_visibleID)`, and Hud.UpdateCrosshair -> `TextViewer.instance.IsVisible()`. Also any Hide().
 - **Consequence:** m_animatorRaven is a permanently uninitialised Animator (no controller, GameObject inactive because Awake's `m_ravenRoot.SetActive(true)` only sets DummyRaven's own flag while the inactive parent "Dummy" keeps it out of the hierarchy). Style.Raven would render nothing, and the Raven branch of 1.0's new hover-name gate reads a dead Animator. Vanilla 1.0 has a real `textroot_raven [Animator, CanvasGroup]` with bkg/topic/Text.
@@ -785,7 +785,7 @@ Auga applies ~55 Harmony patches (plus 2 reflective compat blocks). I checked ev
 ### [harmony-10] Player.UpdateKnownRecipesList prefix re-scan misses 1.0's seasonal recipes/pieces and lacks vanilla's recipe.m_item null guard
 
 - **Verdict:** confirmed (reviewer confidence 85)
-- **Auga:** C:\Users\user_\Documents\GitHub\Valheim_Creative\Auga\Auga\AugaLog_Hooks.cs:75-116 (Player_UpdateKnownRecipesList_Patch.Prefix)
+- **Auga:** Auga\AugaLog_Hooks.cs:75-116 (Player_UpdateKnownRecipesList_Patch.Prefix)
 - **Vanilla 1.0:** Player.UpdateKnownRecipesList (decomp\Player.cs:5330-5363)
 - **Trigger:** Learn a recipe or building piece that is only enabled by the active season (m_currentSeason).
 - **Consequence:** Seasonal recipes and seasonal pieces are added to m_knownRecipes by vanilla but never produce an Auga 'new recipe' / 'new piece' log entry. Secondary risk: Auga's copy omits vanilla's `(bool)recipe.m_item` test, so a modded/season ObjectDB entry with a null m_item NREs in the prefix (this predates 1.0 but the recipe set is larger now).
@@ -795,7 +795,7 @@ Auga applies ~55 Harmony patches (plus 2 reflective compat blocks). I checked ev
 ### [harmony-11] InventoryGui.DoCrafting prefix's eligibility copy is out of date with 1.0, so several successful crafts produce no Auga log entry
 
 - **Verdict:** confirmed (reviewer confidence 85)
-- **Auga:** C:\Users\user_\Documents\GitHub\Valheim_Creative\Auga\Auga\AugaLog_Hooks.cs:161-199 (InventoryGui_DoCrafting_Patch.Prefix)
+- **Auga:** Auga\AugaLog_Hooks.cs:161-199 (InventoryGui_DoCrafting_Patch.Prefix)
 - **Vanilla 1.0:** InventoryGui.DoCrafting (decomp\InventoryGui.cs:1782ff)
 - **Trigger:** Craft at an upgrader station past max quality, craft on a world with the NoCraftCost global key, multicraft more than one, or craft an item that stacks into an already-occupied slot with no free slot.
 - **Consequence:** AugaMessageLog.AddCraftItemLog / AddUpgradeItemLog is skipped for those crafts (the item is still crafted - the prefix always returns true, so nothing crashes). Multicrafted amounts are also logged as a single item.
@@ -818,7 +818,7 @@ Auga applies ~55 Harmony patches (plus 2 reflective compat blocks). I checked ev
 ### [harmony-7] Menu.UpdateNavigation transpiler re-implementation omits the 1.0 buttons (m_skipButton, m_inviteButton) and never sets Navigation.Mode.Explicit
 
 - **Verdict:** confirmed (reviewer confidence 82)
-- **Auga:** C:\Users\user_\Documents\GitHub\Valheim_Creative\Auga\Auga\PauseMenu_Setup.cs:119-234 (Menu_UpdateNavigation_Patch.UpdateNavigation + Transpiler that replaces the whole body)
+- **Auga:** Auga\PauseMenu_Setup.cs:119-234 (Menu_UpdateNavigation_Patch.UpdateNavigation + Transpiler that replaces the whole body)
 - **Vanilla 1.0:** Menu.UpdateNavigation (decomp\Menu.cs) - rewritten in 1.0 to build the list from the serialized fields m_continueButton, m_skipButton, m_saveButton, m_playerListButton, m_inviteButton, m_settingsButton, m_logoutButton, m_quitButton
 - **Trigger:** Open the pause menu with a gamepad and navigate up/down (once the SetButtonsEnabled crash above is fixed).
 - **Consequence:** 'Skip intro' and the new 'Invite friends' entry are never in the gamepad navigation chain, and because Auga's replacement builds `navigation with { selectOnUp, selectOnDown }` without assigning `mode`, whichever Navigation.Mode the Auga prefab's buttons carry is kept - 1.0 forces Navigation.Mode.Explicit, so if the prefab says Automatic the explicit links are ignored entirely.
@@ -829,7 +829,7 @@ Auga applies ~55 Harmony patches (plus 2 reflective compat blocks). I checked ev
 ### [hud-bars-3] Hud.m_gpTouchButton is left on the hidden GuardianPower_VanillaDonor; Auga's GuardianPower/Icon has no UIInputHandler, so 1.0's click/tap-to-activate guardian power is dead
 
 - **Verdict:** confirmed (reviewer confidence 80) - crash already prevented by PortCarryOver
-- **Auga:** C:\Users\user_\Documents\GitHub\Valheim_Creative\Auga\Auga\Hud_Setup.cs:82-88 — `__instance.m_gpRoot = (RectTransform)__instance.Replace("hudroot/GuardianPower", Auga.Assets.Hud);` then reassigns m_gpName, m_gpIcon, m_gpCooldown only. AugaUnity/Assets/Prefabs/HUD.prefab: hudroot/GuardianPower children are GPBkg, Icon (CanvasRenderer + Image only), Name, GPTimeText, GPKey.
+- **Auga:** Auga\Hud_Setup.cs:82-88 — `__instance.m_gpRoot = (RectTransform)__instance.Replace("hudroot/GuardianPower", Auga.Assets.Hud);` then reassigns m_gpName, m_gpIcon, m_gpCooldown only. AugaUnity/Assets/Prefabs/HUD.prefab: hudroot/GuardianPower children are GPBkg, Icon (CanvasRenderer + Image only), Name, GPTimeText, GPKey.
 - **Vanilla 1.0:** Hud.m_gpTouchButton (decomp/Hud.cs:164); wired in Hud.Awake (`gpTouchButton.m_onLeftClick = Delegate.Combine(..., OnGuardianPowerClicked)`); handler Hud.OnGuardianPowerClicked (decomp/Hud.cs:1626) calls Player.StartGuardianPower()
 - **Trigger:** Clicking / double-tapping the guardian-power icon in the HUD (the pointer path 1.0 added; the keyboard hotkey path is unaffected).
 - **Consequence:** No exception — Hud.Awake runs before Auga's postfix so the delegate is hooked successfully, but it is hooked to the UIInputHandler inside the branch Auga then turns into an inactive donor. That object can no longer receive raycasts, and Auga's replacement icon carries no UIInputHandler/GuiButton, so the guardian power can never be activated by clicking or tapping it.
@@ -849,7 +849,7 @@ Auga applies ~55 Harmony patches (plus 2 reflective compat blocks). I checked ev
 ### [main-menu-7] 1.0 FejdStartup has menu UI Auga's MainMenu prefab has no counterpart for, including two SceneReference fields PortCarryOver structurally cannot fill
 
 - **Verdict:** confirmed (reviewer confidence 80)
-- **Auga:** C:\Users\user_\Documents\GitHub\Valheim_Creative\Auga\Auga\MainMenu_Setup.cs:40 (`__instance.Replace("Menu", Auga.Assets.MainMenuPrefab)`) and the field assignments at 43-191; C:\Users\user_\Documents\GitHub\Valheim_Creative\Auga\Auga\PortCarryOver.cs:104-120
+- **Auga:** Auga\MainMenu_Setup.cs:40 (`__instance.Replace("Menu", Auga.Assets.MainMenuPrefab)`) and the field assignments at 43-191; Auga\PortCarryOver.cs:104-120
 - **Vanilla 1.0:** FejdStartup fields and FejdStartup.Awake / SetupGui / HideAll (decomp/FejdStartup.cs:15-306, 307-372, 505-533)
 - **Trigger:** Re-enabling the menu swap; then every menu screen that touches one of these.
 - **Consequence:** Fields pointing into the replaced 'Menu' branch become destroyed references, and fields that are not UnityEngine.Object are invisible to both PortCarryOver and PortDiagnostics so they stay at their 2023 defaults with no warning. `HideAll()` alone dereferences `m_characterSelectScreen` and `m_cinematicsMenuList`, and `Awake()` dereferences `m_crossplayServerToggle`, `m_menuList`, `m_csSourceInfo`, `m_csFileSource` and `m_serverOptions` - all before any Auga postfix could repair them.
@@ -859,7 +859,7 @@ Auga applies ~55 Harmony patches (plus 2 reflective compat blocks). I checked ev
 ### [world-ui-3] 1.0 radial-menu key hints are stranded in the hidden KeyHints donor, so the radial hint strip is permanently blank
 
 - **Verdict:** partly (reviewer confidence 80) - crash already prevented by PortCarryOver
-- **Auga:** C:\Users\user_\Documents\GitHub\Valheim_Creative\Auga\Auga\Hud_Setup.cs:201 `var keyHints = __instance.transform.Replace("hudroot/KeyHints", Auga.Assets.Hud);`; AugaUnity\Assets\Prefabs\HUD.prefab, KeyHints component on GO "KeyHints": `m_radialHints: {fileID: 6032538681940285978}`, `m_radialBackHint: {fileID: 0}`, `m_radialInteract: {fileID: 0}`, `m_radialBack: {fileID: 0}`, and no m_radialKeyHints key at all
+- **Auga:** Auga\Hud_Setup.cs:201 `var keyHints = __instance.transform.Replace("hudroot/KeyHints", Auga.Assets.Hud);`; AugaUnity\Assets\Prefabs\HUD.prefab, KeyHints component on GO "KeyHints": `m_radialHints: {fileID: 6032538681940285978}`, `m_radialBackHint: {fileID: 0}`, `m_radialInteract: {fileID: 0}`, `m_radialBack: {fileID: 0}`, and no m_radialKeyHints key at all
 - **Vanilla 1.0:** KeyHints.UpdateHints (decomp\KeyHints.cs:195-204 and :301-304) and KeyHints.SetGamePadBindings (decomp\KeyHints.cs:109); KeyHintsRadial.UpdateRadialHints (decomp\KeyHintsRadial.cs:71)
 - **Trigger:** Opening the 1.0 radial menu (gamepad radial / OpenEmote), which makes Hud.instance.m_radialMenu.Active true.
 - **Consequence:** KeyHints does `m_radialHints.SetActive(value: true)` on Auga's own RadialHints object, whose three 2023 hint fields are all {fileID: 0}, so nothing is shown. The real 1.0 hints (interact / back / close / closeTopLevel / drop / drop-multiple, keyboard and gamepad variants) live on the donor's KeyHints/RadialHints object that PortCarryOver pointed m_radialKeyHints at, but that object is inside the inactive KeyHints_VanillaDonor, so `if (m_radialKeyHints.isActiveAndEnabled)` at KeyHints.cs:301 is always false and UpdateRadialHints(Hud.instance.m_radialMenu) never runs. Net: the radial menu has no key hints at all under Auga.
@@ -906,7 +906,7 @@ Auga applies ~55 Harmony patches (plus 2 reflective compat blocks). I checked ev
 ### [minimap-4] Minimap_Setup overwrites m_hints with a single Auga object, so the whole 1.0 large-map key-hint block (including the new gamepadmouse_hints row and the keyboard Ping hint) never shows
 
 - **Verdict:** confirmed (reviewer confidence 72)
-- **Auga:** C:\Users\user_\Documents\GitHub\Valheim_Creative\Auga\Auga\Minimap_Setup.cs:133 — `minimap.m_hints = new List<GameObject> { newMap.Find("PingPanel").gameObject };`
+- **Auga:** Auga\Minimap_Setup.cs:133 — `minimap.m_hints = new List<GameObject> { newMap.Find("PingPanel").gameObject };`
 - **Vanilla 1.0:** Minimap.SetMapMode, MapMode.Large branch (scratchpad\decomp\Minimap.cs:1238-1242)
 - **Trigger:** Open the large map with the "KeyHints" setting on (PlatformPrefs.GetInt("KeyHints", 1) == 1).
 - **Consequence:** Only Auga's own single PingPanel hint is toggled. The 1.0 map hint rows — Add pin / Cross off pin / Remove pin / Ping for keyboard, gamepad, and the new gamepad+mouse layout — plus the IconPanel mouse1/mouse2 hints stay inside the inactive large_VanillaDonor and are never shown, so a new player gets no on-screen hint for how to add, cross off, remove or ping a pin.
@@ -938,7 +938,7 @@ Auga applies ~55 Harmony patches (plus 2 reflective compat blocks). I checked ev
 ### [inventory-7] InventoryGrid_Patches.cs must stay excluded from the build — it is a verbatim re-implementation of the 0.217.30 UpdateGui and no longer compiles against 1.0
 
 - **Verdict:** confirmed (reviewer confidence 95)
-- **Auga:** C:\Users\user_\Documents\GitHub\Valheim_Creative\Auga\Auga\InventoryGrid_Patches.cs:12-139; exclusion at Auga\Auga.csproj:50 `<Compile Remove="API.External.cs;InventoryGrid_Patches.cs" />`
+- **Auga:** Auga\InventoryGrid_Patches.cs:12-139; exclusion at Auga\Auga.csproj:50 `<Compile Remove="API.External.cs;InventoryGrid_Patches.cs" />`
 - **Vanilla 1.0:** InventoryGrid (removed nested class Element, renamed handlers) — scratchpad\auga_audit\diffs\InventoryGrid.diff lines 15-42 and 498-513; scratchpad\decomp\InventoryGrid.cs:419-469
 - **Trigger:** Only if a porter re-adds the file to <Compile> in an attempt to fix the UpdateGui crash.
 - **Consequence:** Compile errors, and if adapted it would be worse than the current state: the prefix returns false and re-implements the 2023 body, silently dropping everything 1.0 added to UpdateGui — InventoryElement, m_canBeDroppedOn/CanDropDragOntoItem, the drop-focus fader, touch selection, the null-element guard, OnLeftClick/OnLeftUp/OnPointerEnter and the UIDragHandler wiring — which would also re-break the drag handlers InventoryGui expects.
@@ -971,7 +971,7 @@ Auga applies ~55 Harmony patches (plus 2 reflective compat blocks). I checked ev
 ### [world-ui-2] StoreGui is the only replaced screen that never goes through PortCarryOver, so m_tooltipAnchor stays null and the screen has no donor safety net
 
 - **Verdict:** confirmed (reviewer confidence 85)
-- **Auga:** C:\Users\user_\Documents\GitHub\Valheim_Creative\Auga\Auga\Store_Setup.cs:14-50 (SetupAugaStoreGui / GetAugaStoreGui use a plain Object.Instantiate plus originalTransform.gameObject.SetActive(false), never PortCarryOver.MakeDonor / InstantiateFilled); AugaUnity\Assets\Prefabs\AugaStoreScreen.prefab, StoreGui component &1778101921818948584: `m_coinPrefab: {fileID: 0}` and `m_tooltipAnchor: {fileID: 0}`
+- **Auga:** Auga\Store_Setup.cs:14-50 (SetupAugaStoreGui / GetAugaStoreGui use a plain Object.Instantiate plus originalTransform.gameObject.SetActive(false), never PortCarryOver.MakeDonor / InstantiateFilled); AugaUnity\Assets\Prefabs\AugaStoreScreen.prefab, StoreGui component &1778101921818948584: `m_coinPrefab: {fileID: 0}` and `m_tooltipAnchor: {fileID: 0}`
 - **Vanilla 1.0:** StoreGui.FillList (decomp\StoreGui.cs:278 and :282) passes m_tooltipAnchor to UITooltip.Set(topic, text, anchor); UITooltip.AnchorTooltip (decomp_assembly_guiutils\UITooltip.cs)
 - **Trigger:** Opening the trader screen with a gamepad or touch active and moving the selection over an item (UITooltip.AnchorTooltip only runs under ZInput.IsExclusiveGamepadActive()/IsTouchActive()).
 - **Consequence:** m_anchor is null, so AnchorTooltip falls through to positioning the tooltip at the midpoint of the hovered row's top edge instead of the panel's tooltip anchor - tooltips drift over the item list. No exception. The structural half matters more: because StoreGui alone skips MakeDonor/Fill, any Object field 1.0 or a future patch adds to StoreGui will be plain null with no donor to fill it, unlike every other replaced screen.
@@ -981,7 +981,7 @@ Auga applies ~55 Harmony patches (plus 2 reflective compat blocks). I checked ev
 ### [harmony-14] Two patches declare __instance with a type unrelated to the patched class (DamageText.Awake / Game._RequestRespawn)
 
 - **Verdict:** confirmed (reviewer confidence 85)
-- **Auga:** C:\Users\user_\Documents\GitHub\Valheim_Creative\Auga\Auga\DamageText_Setup.cs:13 (`public static bool Prefix(TextInput __instance)` on DamageText.Awake) and C:\Users\user_\Documents\GitHub\Valheim_Creative\Auga\Auga\Barber_Setup.cs:21 (`public static void Postfix(PlayerCustomizaton __instance)` on Game._RequestRespawn)
+- **Auga:** Auga\DamageText_Setup.cs:13 (`public static bool Prefix(TextInput __instance)` on DamageText.Awake) and Auga\Barber_Setup.cs:21 (`public static void Postfix(PlayerCustomizaton __instance)` on Game._RequestRespawn)
 - **Vanilla 1.0:** DamageText.Awake (decomp\DamageText.cs:51) and Game._RequestRespawn (decomp\Game.cs:624)
 - **Trigger:** Game start (DamageText.Awake) and every respawn request (Game._RequestRespawn).
 - **Consequence:** Harmony emits `ldarg.0` with no cast, so a DamageText is passed where a TextInput is declared and a Game where a PlayerCustomizaton is declared. It works today because the generated method is unverifiable dynamic IL and the parameter is either unused (Barber) or only used for `.transform` (DamageText), but it is wrong by construction and will break the moment either body touches a type-specific member or Harmony adds a type check.
@@ -1012,7 +1012,7 @@ Auga applies ~55 Harmony patches (plus 2 reflective compat blocks). I checked ev
 ### [text-chat-8] DamageText.Awake prefix declares __instance as TextInput instead of DamageText
 
 - **Verdict:** confirmed (reviewer confidence 82)
-- **Auga:** C:\Users\user_\Documents\GitHub\Valheim_Creative\Auga\Auga\DamageText_Setup.cs:14 - `public static bool Prefix(TextInput __instance)` inside `[HarmonyPatch(typeof(DamageText), nameof(DamageText.Awake))]`
+- **Auga:** Auga\DamageText_Setup.cs:14 - `public static bool Prefix(TextInput __instance)` inside `[HarmonyPatch(typeof(DamageText), nameof(DamageText.Awake))]`
 - **Vanilla 1.0:** DamageText.Awake (scratchpad\decomp\DamageText.cs:49-53)
 - **Trigger:** Plugin patching / DamageText.Awake at world load.
 - **Consequence:** Harmony emits a bare `ldarg.0` for __instance with no cast, so a DamageText instance is handed to a parameter typed TextInput. It happens to work today because the body only reads `__instance.transform` (a Component member), but any future use of a TextInput member on that reference is type-confused, and a stricter Harmony build would reject or mis-cast the patch.
@@ -1022,7 +1022,7 @@ Auga applies ~55 Harmony patches (plus 2 reflective compat blocks). I checked ev
 ### [text-chat-3] Auga's NpcDialog and NpcDialogLarge templates are serialized active while vanilla 1.0's are inactive, and Chat.Awake only deactivates m_worldTextBase
 
 - **Verdict:** confirmed (reviewer confidence 80)
-- **Auga:** C:\Users\user_\Documents\GitHub\Valheim_Creative\Auga\AugaUnity\Assets\Prefabs\AugaChat.prefab - GameObject &6571844204300040975 "NpcDialog" has `m_IsActive: 1` (RectTransform line 1036, anchoredPosition 960/535.7, anchor 0,0) and GameObject &6572251113943847494 "NpcDialogLarge" has `m_IsActive: 1` (RectTransform line 1108, anchoredPosition 960/222.3); both are referenced by the Chat component at AugaChat.prefab lines 1420-1421 as m_npcTextBase / m_npcTextBaseLarge
+- **Auga:** AugaUnity\Assets\Prefabs\AugaChat.prefab - GameObject &6571844204300040975 "NpcDialog" has `m_IsActive: 1` (RectTransform line 1036, anchoredPosition 960/535.7, anchor 0,0) and GameObject &6572251113943847494 "NpcDialogLarge" has `m_IsActive: 1` (RectTransform line 1108, anchoredPosition 960/222.3); both are referenced by the Chat component at AugaChat.prefab lines 1420-1421 as m_npcTextBase / m_npcTextBaseLarge
 - **Vanilla 1.0:** Chat.Awake (scratchpad\decomp\Chat.cs, `m_input.gameObject.SetActive(value: false); m_worldTextBase.SetActive(value: false);`) - it never deactivates the two NPC text templates because the vanilla prefab ships them inactive
 - **Trigger:** Entering the world (the frame the Auga chat object is activated).
 - **Consequence:** Both template dialog boxes are live in the hierarchy. NpcDialog.controller's default state is `npc_dialog_show` (m_Tag: visible) which auto-advances to `npc_dialog_visible`, so two empty dialog frames flash near the middle of the screen before the `visible == false` condition drives them to npc_dialog_hide/hidden. They then sit there invisible but present forever.
@@ -1032,7 +1032,7 @@ Auga applies ~55 Harmony patches (plus 2 reflective compat blocks). I checked ev
 ### [hud-bars-5] Hud_UpdateBuild_Patch's transpiler looks for a ldstr " [<color=yellow>" that 1.0 replaced with a composite format string, so the build-category counts are never recoloured
 
 - **Verdict:** confirmed (reviewer confidence 78)
-- **Auga:** C:\Users\user_\Documents\GitHub\Valheim_Creative\Auga\Auga\Hud_Setup.cs:619-633, specifically line 624 `if (instruction.opcode == OpCodes.Ldstr && instruction.OperandIs(" [<color=yellow>"))`
+- **Auga:** Auga\Hud_Setup.cs:619-633, specifically line 624 `if (instruction.opcode == OpCodes.Ldstr && instruction.OperandIs(" [<color=yellow>"))`
 - **Vanilla 1.0:** Hud.UpdateBuild (decomp/Hud.cs:1470) `string text = $"{pieceTable.m_categoryLabels[i]} [<color=yellow>{player.GetAvailableBuildPiecesInCategory(pieceTable.m_categories[i])}</color>]";` — in 0.217 this was string concatenation: `m_buildCategoryNames[i] + " [<color=yellow>" + player.GetAvailableBuildPiecesInCategory((Piece.PieceCategory)i) + "</color>]"`
 - **Trigger:** Opening the build menu with a piece table that has categories.
 - **Consequence:** No exception. The transpiler matches nothing and yields the method unchanged, so the piece-count badge on each build-category tab keeps vanilla's yellow instead of Auga's BrightestGold. Purely visual inconsistency with the rest of Auga's palette.
@@ -1042,7 +1042,7 @@ Auga applies ~55 Harmony patches (plus 2 reflective compat blocks). I checked ev
 ### [text-chat-5] Chat_Setup and MessageHud_Setup Awake postfixes also run for the hidden vanilla donor, adding MovableHudElement to donor objects and binding a config section named '<name>_VanillaDonor'
 
 - **Verdict:** confirmed (reviewer confidence 78)
-- **Auga:** C:\Users\user_\Documents\GitHub\Valheim_Creative\Auga\Auga\Chat_Setup.cs:24-34 (`if (__instance.m_input != null) __instance.m_input.transform.parent.gameObject.AddComponent<MovableHudElement>().Init(TextAnchor.LowerRight, 0, 67);`) and Auga\MessageHud_Setup.cs:18-28 (`__instance.m_messageCenterText.gameObject.AddComponent<MovableHudElement>().Init(TextAnchor.MiddleCenter, 0, 150);`)
+- **Auga:** Auga\Chat_Setup.cs:24-34 (`if (__instance.m_input != null) __instance.m_input.transform.parent.gameObject.AddComponent<MovableHudElement>().Init(TextAnchor.LowerRight, 0, 67);`) and Auga\MessageHud_Setup.cs:18-28 (`__instance.m_messageCenterText.gameObject.AddComponent<MovableHudElement>().Init(TextAnchor.MiddleCenter, 0, 150);`)
 - **Vanilla 1.0:** Chat.Awake and MessageHud.Awake (scratchpad\decomp\Chat.cs, scratchpad\decomp\MessageHud.cs) - the Harmony prefix returns false for the original instance but the postfix still runs on it
 - **Trigger:** World load, every time the replacement happens.
 - **Consequence:** The postfix body executes twice: once for Auga's replacement and once for the inactive donor. For Chat that binds a bogus BepInEx config section derived from the donor's renamed GameObject (PortCarryOver.MakeDonor appends "_VanillaDonor" to the Chat_box object), polluting Auga's cfg with e.g. [Chat_box_VanillaDonor]; a stray MovableHudElement is also left on hidden donor objects.
@@ -1075,7 +1075,7 @@ Auga applies ~55 Harmony patches (plus 2 reflective compat blocks). I checked ev
 ### [pause-texts-11] Auga's Menu.UpdateNavigation replacement never sets Navigation.Mode.Explicit, so the up/down chain it builds is ignored by Unity
 
 - **Verdict:** confirmed (reviewer confidence 75)
-- **Auga:** C:\Users\user_\Documents\GitHub\Valheim_Creative\Auga\Auga\PauseMenu_Setup.cs:189-197 (`buttonList[index].navigation with { selectOnUp = ..., selectOnDown = ... }` - mode is inherited from the prefab)
+- **Auga:** Auga\PauseMenu_Setup.cs:189-197 (`buttonList[index].navigation with { selectOnUp = ..., selectOnDown = ... }` - mode is inherited from the prefab)
 - **Vanilla 1.0:** Menu.UpdateNavigation() (decomp\Menu.cs:194 `navigation.mode = Navigation.Mode.Explicit;`)
 - **Trigger:** Navigate the pause menu with a gamepad or arrow keys.
 - **Consequence:** MenuButton.prefab ships `m_Navigation: m_Mode: 3` (Automatic), and with Automatic mode Unity computes neighbours geometrically and ignores selectOnUp/selectOnDown entirely. Auga's carefully ordered list (Settings, Compendium, Save, Logout, Exit, CloseButton) has no effect, and the wrap-around from the last entry back to the first is lost. The list also omits SkipIntro, CurrentPlayerList and the new InviteFriends entries that 1.0's UpdateNavigation includes.
@@ -1085,7 +1085,7 @@ Auga applies ~55 Harmony patches (plus 2 reflective compat blocks). I checked ev
 ### [text-chat-10] Chat's new 1.0 field m_doubleOpenForVirtualKeyboard is false on Auga's serialized Chat copy
 
 - **Verdict:** cannot_verify (reviewer confidence 75)
-- **Auga:** C:\Users\user_\Documents\GitHub\Valheim_Creative\Auga\AugaUnity\Assets\Prefabs\AugaChat.prefab lines 1409-1422 - the Chat MonoBehaviour (&2728652263308488219, m_Script fileID 306012409 guid c1b78fa918b030faf1c1f6f6164daeb2) serializes only m_chatWindow, m_output, m_input, m_search, m_maxVisibleBufferLength, m_hideDelay, m_worldTextTTL, m_worldTextBase, m_npcTextBase, m_npcTextBaseLarge, m_wasFocused - there is no m_doubleOpenForVirtualKeyboard key
+- **Auga:** AugaUnity\Assets\Prefabs\AugaChat.prefab lines 1409-1422 - the Chat MonoBehaviour (&2728652263308488219, m_Script fileID 306012409 guid c1b78fa918b030faf1c1f6f6164daeb2) serializes only m_chatWindow, m_output, m_input, m_search, m_maxVisibleBufferLength, m_hideDelay, m_worldTextTTL, m_worldTextBase, m_npcTextBase, m_npcTextBaseLarge, m_wasFocused - there is no m_doubleOpenForVirtualKeyboard key
 - **Vanilla 1.0:** Chat.Update / the new field (scratchpad\decomp\Chat.cs, `[Tooltip("If true the player has to open chat twice to enter input mode.")] [SerializeField] protected bool m_doubleOpenForVirtualKeyboard = true;`)
 - **Trigger:** Opening chat on a console platform (Application.isConsolePlatform).
 - **Consequence:** The double-open virtual-keyboard behaviour 1.0 added is off on Auga's chat: `if (m_doubleOpenForVirtualKeyboard && Application.isConsolePlatform) m_input.Select(); else m_input.ActivateInputField();` always takes the ActivateInputField branch. Irrelevant on PC, hence cosmetic.
@@ -1097,7 +1097,7 @@ Auga applies ~55 Harmony patches (plus 2 reflective compat blocks). I checked ev
 ### [harmony-15] AddKnownBiome log hook keys off BiomeSector.Biome, but 1.0 tracks known biomes by sector name, so alt-biome sectors log duplicate/base-biome entries
 
 - **Verdict:** confirmed (reviewer confidence 75)
-- **Auga:** C:\Users\user_\Documents\GitHub\Valheim_Creative\Auga\Auga\AugaLog_Hooks.cs:132-144 (Player_AddKnownBiome_Patch.Prefix)
+- **Auga:** Auga\AugaLog_Hooks.cs:132-144 (Player_AddKnownBiome_Patch.Prefix)
 - **Vanilla 1.0:** Player.AddKnownBiome(BiomeSector biome) / Player.IsBiomeKnown(BiomeSector biome) (decomp\Player.cs:5153-5175), Player.m_knownBiome (HashSet<string>)
 - **Trigger:** Discover a second, differently named sector of a biome you already know (1.0's alt-biome sectors), or spawn into Meadows.
 - **Consequence:** Auga's message log writes an extra entry naming the base Heightmap.Biome (so 'Meadows' can appear more than once), and it logs the Meadows/None discovery that vanilla deliberately suppresses. No exception.
@@ -1107,7 +1107,7 @@ Auga applies ~55 Harmony patches (plus 2 reflective compat blocks). I checked ev
 ### [text-chat-6] MessageHud_Setup.ShowMessage postfix dereferences AugaTopLeftMessageController without a null check and ignores 1.0's new showDespiteHiddenHUD/log parameters
 
 - **Verdict:** confirmed (reviewer confidence 72)
-- **Auga:** C:\Users\user_\Documents\GitHub\Valheim_Creative\Auga\Auga\MessageHud_Setup.cs:30-46 - `if (Hud.IsUserHidden()) return;` (line 34) then `var controller = __instance.GetComponent<AugaTopLeftMessageController>(); controller.AddMessage(text, icon, amount);` (lines 41-43)
+- **Auga:** Auga\MessageHud_Setup.cs:30-46 - `if (Hud.IsUserHidden()) return;` (line 34) then `var controller = __instance.GetComponent<AugaTopLeftMessageController>(); controller.AddMessage(text, icon, amount);` (lines 41-43)
 - **Vanilla 1.0:** MessageHud.ShowMessage (scratchpad\decomp\MessageHud.cs:156-198)
 - **Trigger:** Any MessageType.TopLeft message; the missing-message half triggers only for a TopLeft message sent with showDespiteHiddenHUD: true while the HUD is user-hidden.
 - **Consequence:** (a) If the HudMessage/TopLeftMessage replacement ever fails to run (e.g. a mod conflict or a renamed sibling), the very first TopLeft message throws NullReferenceException inside the postfix rather than degrading. (b) 1.0's new `showDespiteHiddenHUD` contract is not honoured: vanilla enqueues the message, Auga's top-left display drops it.
@@ -1127,7 +1127,7 @@ Auga applies ~55 Harmony patches (plus 2 reflective compat blocks). I checked ev
 ### [harmony-12] Hud.UpdateBuild transpiler's ldstr search no longer matches: 1.0 builds the category label with string.Format, not string concatenation
 
 - **Verdict:** confirmed (reviewer confidence 72)
-- **Auga:** C:\Users\user_\Documents\GitHub\Valheim_Creative\Auga\Auga\Hud_Setup.cs:619-633 (Hud_UpdateBuild_Patch.Transpiler)
+- **Auga:** Auga\Hud_Setup.cs:619-633 (Hud_UpdateBuild_Patch.Transpiler)
 - **Vanilla 1.0:** Hud.UpdateBuild (decomp\Hud.cs:1470)
 - **Trigger:** Open the build category tabs.
 - **Consequence:** The build-category piece counts keep vanilla's yellow instead of Auga's BrightestGold. The transpiler silently matches nothing (it has no fallback and no log).
@@ -1150,7 +1150,7 @@ Auga applies ~55 Harmony patches (plus 2 reflective compat blocks). I checked ev
 ### [pause-texts-12] TabHandler moved Init from Awake to Start and added m_activeTabEverSet, so the compendium's ShowCompendium call silently cancels the initial tab selection
 
 - **Verdict:** confirmed (reviewer confidence 70)
-- **Auga:** C:\Users\user_\Documents\GitHub\Valheim_Creative\Auga\AugaUnityLib\AugaCompendiumController.cs:137-138 (`gameObject.SetActive(true); TabController.SetActiveTab(0);`); the TabHandler is Compendium.prefab &4197022688427604870 (line 287, `m_Script: {fileID: -259742986, guid: c1b78fa918b030faf1c1f6f6164daeb2}`)
+- **Auga:** AugaUnityLib\AugaCompendiumController.cs:137-138 (`gameObject.SetActive(true); TabController.SetActiveTab(0);`); the TabHandler is Compendium.prefab &4197022688427604870 (line 287, `m_Script: {fileID: -259742986, guid: c1b78fa918b030faf1c1f6f6164daeb2}`)
 - **Vanilla 1.0:** TabHandler.Start()/Init()/SetActiveTab(int,bool,bool) (decomp\TabHandler.cs:53-56, :108-111, :228-235)
 - **Trigger:** First time the compendium is opened after the pause menu is created (the Compendium instance ships inactive).
 - **Consequence:** `SetActive(true)` no longer triggers Init (1.0 moved it from Awake to Start, which is deferred). `SetActiveTab(0)` then sets `m_activeTabEverSet = true` and immediately returns because `!forceSelect && m_selected == 0`. When Start->Init finally runs, `if (!m_activeTabEverSet && num >= 0)` is false, so the default tab is never applied: all three tab buttons keep `interactable = true` and their 'Selected' highlight children keep their raw prefab state. It self-corrects only after the player clicks a tab other than the first.
@@ -1171,7 +1171,7 @@ Auga applies ~55 Harmony patches (plus 2 reflective compat blocks). I checked ev
 ### [pause-texts-14] TabHandler.m_tabKeyInput is new in 1.0 and defaults to true, so the Tab key now cycles the compendium's tabs although Auga's prefab has m_gamepadInput off
 
 - **Verdict:** confirmed (reviewer confidence 65)
-- **Auga:** C:\Users\user_\Documents\GitHub\Valheim_Creative\Auga\AugaUnity\Assets\Prefabs\Compendium.prefab:287-305 (TabHandler &4197022688427604870 serializes only m_gamepadInput: 0, m_gamepadNavigateLeft, m_gamepadNavigateRight, m_tabs, m_setActiveTabEffects)
+- **Auga:** AugaUnity\Assets\Prefabs\Compendium.prefab:287-305 (TabHandler &4197022688427604870 serializes only m_gamepadInput: 0, m_gamepadNavigateLeft, m_gamepadNavigateRight, m_tabs, m_setActiveTabEffects)
 - **Vanilla 1.0:** TabHandler.Update() (decomp\TabHandler.cs:154-157 `if (m_tabKeyInput && ZInput.GetKeyDown(KeyCode.Tab)) num = 1;`)
 - **Trigger:** Press Tab while the compendium is open.
 - **Consequence:** In 0.217 the Tab-key branch lived inside `if (m_gamepadInput && ...)`, so with m_gamepadInput: 0 Tab did nothing in the compendium. In 1.0 the check is top-level and gated only by the new `m_tabKeyInput`, which is absent from Auga's serialized data and therefore keeps its C# initializer value `true`. Tab now silently cycles compendium tabs, which can fight with any other Tab handling the player expects.
@@ -1182,7 +1182,7 @@ Auga applies ~55 Harmony patches (plus 2 reflective compat blocks). I checked ev
 ### [text-chat-9] IndirectTwoObjectReplace captures both sibling indices before moving both donors to last, so the secondary object lands one slot late when it was originally after the primary
 
 - **Verdict:** confirmed (reviewer confidence 60)
-- **Auga:** C:\Users\user_\Documents\GitHub\Valheim_Creative\Auga\Auga\SetupHelper.cs:62-84 - `var secondarySiblingIndex = secondaryOriginal.GetSiblingIndex(); var primarySiblingIndex = primaryOriginal.GetSiblingIndex();` are both read before `PortCarryOver.MakeDonor(secondaryOriginal...)` and `PortCarryOver.MakeDonor(primaryOriginal...)`, each of which calls `transform.SetAsLastSibling()`
+- **Auga:** Auga\SetupHelper.cs:62-84 - `var secondarySiblingIndex = secondaryOriginal.GetSiblingIndex(); var primarySiblingIndex = primaryOriginal.GetSiblingIndex();` are both read before `PortCarryOver.MakeDonor(secondaryOriginal...)` and `PortCarryOver.MakeDonor(primaryOriginal...)`, each of which calls `transform.SetAsLastSibling()`
 - **Vanilla 1.0:** Chat.Awake and MessageHud.Awake call sites - the replaced pairs are IngameGui/Chat + IngameGui/Chat_box (Auga\Chat_Setup.cs:21) and IngameGui/HudMessage + IngameGui/TopLeftMessage (Auga\MessageHud_Setup.cs:15)
 - **Trigger:** World load, only when the secondary object (Chat_box / TopLeftMessage) is a later sibling of IngameGui than the primary (Chat / HudMessage).
 - **Consequence:** The replacement chat window / top-left message container is inserted one slot further back in IngameGui's child order than the vanilla object it replaces, changing uGUI draw order against its immediate neighbours. DirectObjectReplace (single donor) does not have this problem.

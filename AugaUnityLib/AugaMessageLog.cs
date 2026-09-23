@@ -306,6 +306,19 @@ namespace AugaUnity
             AddLog(new SimpleLogData(LogType.NewBiome, DateTime.Now, Loc("$log_newbiome", Loc($"$biome_{biome.ToString().ToLowerInvariant()}"), biomeColor)));
         }
 
+        // Valheim 1.0 port (harmony-15): 1.0 names biome sectors (alt biomes carry their own name); log that name, coloured by the base biome.
+        public void AddNewBiomeLog(string biomeName, Heightmap.Biome biome)
+        {
+            if (string.IsNullOrEmpty(biomeName))
+            {
+                AddNewBiomeLog(biome);
+                return;
+            }
+
+            var biomeColor = GetBiomeColor(biome);
+            AddLog(new SimpleLogData(LogType.NewBiome, DateTime.Now, Loc("$log_newbiome", Loc(biomeName), biomeColor)));
+        }
+
         public void AddNewPieceLog(List<Piece> newPieces)
         {
             if (newPieces.Count == 0)
@@ -338,6 +351,18 @@ namespace AugaUnity
         public void AddCraftItemLog(Recipe recipe)
         {
             AddLog(new SimpleLogData(LogType.Crafted, DateTime.Now, Loc("$log_craft", Loc(recipe.m_item.m_itemData.m_shared.m_name))));
+        }
+
+        // Valheim 1.0 port (harmony-11): 1.0 multicrafts; show the crafted amount when more than one item came out.
+        public void AddCraftItemLog(Recipe recipe, int amount)
+        {
+            var name = Loc(recipe.m_item.m_itemData.m_shared.m_name);
+            if (amount > 1)
+            {
+                name = $"{name} x{amount}";
+            }
+
+            AddLog(new SimpleLogData(LogType.Crafted, DateTime.Now, Loc("$log_craft", name)));
         }
 
         public void AddSkillUpLog(Skills.SkillType skill, int level)

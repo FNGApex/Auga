@@ -46,6 +46,14 @@ namespace Auga
                 // left m_topicField null (the topic is drawn inline anyway). Swap them for inactive TMP objects.
                 ReplaceLegacyTopic(__instance.m_npcTextBase);
                 ReplaceLegacyTopic(__instance.m_npcTextBaseLarge);
+
+                // Valheim 1.0 port (text-chat-3): vanilla ships the NPC dialog templates inactive and Chat.Awake only hides
+                // m_worldTextBase; Auga's prefab has them active, so two empty frames flashed at load. Chat.SetNpcText
+                // instantiates the template and activates the clone itself, so hiding the templates is safe.
+                if (__instance.m_npcTextBase != null)
+                    __instance.m_npcTextBase.SetActive(false);
+                if (__instance.m_npcTextBaseLarge != null)
+                    __instance.m_npcTextBaseLarge.SetActive(false);
             }
 
             private static void ReplaceLegacyTopic(GameObject dialog)

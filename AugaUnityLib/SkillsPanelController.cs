@@ -13,6 +13,10 @@ namespace AugaUnity
         protected int _skillsCount;
         protected SkillsDialog _skillsDialog;
 
+        // Valheim 1.0 port (#209): green for a bonus, red for a malus (Auga's message-log colours).
+        public const string SkillBonusColor = "9DFF5A";
+        public const string SkillMalusColor = "CD2121";
+
         public virtual void Start()
         {
             SkillPrefab.gameObject.SetActive(false);
@@ -53,6 +57,7 @@ namespace AugaUnity
                     else
                     {
                         currentSkillElement.SetActive(true);
+                        ApplySkillModifier(skills, currentSkillElement);
                     }
                 }
                 else if (currentSkillElement != null)
@@ -65,6 +70,24 @@ namespace AugaUnity
             {
                 _skillsCount = _skills.Count;
                 SortSkillElements();
+            }
+        }
+
+        // Valheim 1.0 port (#209): vanilla 1.0's skills dialog shows the "+N" that status effects (SEMan.ModifySkillLevel,
+        // the hook skill-boosting effects and mods like EpicLoot use) add on top of the raw level. The Auga row prints
+        // m_level only and has no bonus element, so append it to the level text coloured by sign.
+        protected virtual void ApplySkillModifier(Skills skills, SkillsPanelSkillController element)
+        {
+            if (element == null || element.LevelText == null || !skills.m_skillData.TryGetValue(element.SkillType, out var skill))
+                return;
+
+            // GetSkillLevel is floored, so compare against the floored base as vanilla does; the base is shown floored
+            // here too so that base + modifier reads as the effective level.
+            var baseLevel = Mathf.FloorToInt(skill.m_level);
+            var modifier = Mathf.FloorToInt(skills.GetSkillLevel(element.SkillType)) - baseLevel;
+            if (modifier != 0)
+            {
+                element.LevelText.text = $"$level {baseLevel} <color=#{(modifier > 0 ? SkillBonusColor : SkillMalusColor)}>{modifier:+0;-0}</color>";
             }
         }
 

@@ -57,6 +57,14 @@ namespace Auga
             __instance.m_loadingImage = loadingScreen.Find("Loading/Image").GetComponent<Image>();
             __instance.m_loadingTip = loadingScreen.Find("Loading/Tip").GetComponent<TMP_Text>();
             __instance.m_sleepingProgress.GetComponent<SleepText>().m_dreamTexts = originalDreamTexts;
+            // Valheim 1.0 port: the world-generation spinner/progress (LoadingIndicator, new in 1.0) only exists in the
+            // vanilla LoadingBlack, which is now a hidden donor. Move it into Auga's loading screen so a first world
+            // load shows "Generating..." instead of looking hung.
+            if (__instance.m_loadingIndicator != null)
+            {
+                __instance.m_loadingIndicator.transform.SetParent(loadingScreen.Find("Loading"), false);
+                __instance.m_loadingIndicator.transform.SetAsLastSibling();
+            }
 
 
             __instance.m_eventBar = __instance.Replace("hudroot/EventBar", Auga.Assets.Hud).gameObject;
@@ -149,6 +157,12 @@ namespace Auga
             newHealthPanel.gameObject.AddComponent<MovableHudElement>().Init(TextAnchor.LowerLeft, 208, 123.5f);
             newStaminaPanel.gameObject.AddComponent<MovableHudElement>().Init(TextAnchor.LowerLeft, 208, 99.5f);
             newEitrPanel.gameObject.AddComponent<MovableHudElement>().Init(TextAnchor.LowerLeft, 185, 74.5f);
+
+            // Valheim 1.0 port (#59): vanilla 1.0 shows each food's remaining time ("12m") on the HUD; Auga's HUD
+            // food icons have no time text in the prefab, only the radial fill.
+            AddFoodTimeText(foodPanel0);
+            AddFoodTimeText(foodPanel1);
+            AddFoodTimeText(foodPanel2);
 
             __instance.m_healthBarRoot = null;
             __instance.m_healthAnimator = newHealthPanel.GetComponent<Animator>();
@@ -245,6 +259,7 @@ namespace Auga
             var keyHints = __instance.transform.Replace("hudroot/KeyHints", Auga.Assets.Hud);
             keyHints.gameObject.AddComponent<MovableHudElement>().Init(TextAnchor.LowerRight, -34, 62);
             PortRadialHints(keyHints, __instance.transform.Find("hudroot/KeyHints" + PortCarryOver.DonorSuffix));
+            PortBuildMenuHints(keyHints, __instance.transform.Find("hudroot/KeyHints" + PortCarryOver.DonorSuffix));
 
             var shipHud = __instance.transform.Replace("hudroot/ShipHud", Auga.Assets.Hud);
             __instance.m_shipHudRoot = shipHud.gameObject;
@@ -492,6 +507,173 @@ namespace Auga
             }
         }
 
+        /// <summary>
+        /// Valheim 1.0 port (hud-build-3): 1.0's build-menu hints ("Close Build Menu", "Favorite") are toggled through
+        /// KeyHints.m_buildMenuHintsKB/GP, which Auga's prefab lacks; PortCarryOver fills them with rows that live under the
+        /// hidden vanilla donor, so they never showed. Move those rows into Auga's BuildHints Keyboard / Gamepad groups
+        /// (the array references follow the objects) and restyle them like Auga's own rows.
+        /// </summary>
+        private static void PortBuildMenuHints(Transform keyHints, Transform donorKeyHints)
+        {
+            try
+            {
+                var component = keyHints != null ? keyHints.GetComponent<KeyHints>() : null;
+                if (component == null || donorKeyHints == null || component.m_buildHints == null)
+                {
+                    return;
+                }
+
+                var buildHints = component.m_buildHints.transform;
+                var templateList = buildHints.Find("Keyboard");
+                var templateChip = templateList != null
+                    ? templateList.GetComponentsInChildren<Image>(true).FirstOrDefault(i => i.sprite != null && i.name == "Background")
+                      ?? templateList.GetComponentsInChildren<Image>(true).FirstOrDefault(i => i.sprite != null && i.name == "Darken")
+                    : null;
+                var templateLabel = templateList != null ? templateList.GetComponentsInChildren<Text>(true).FirstOrDefault(t => t.name == "Label") : null;
+                SettingsSkin.Load();
+                var labelColor = templateLabel != null ? templateLabel.color : SettingsSkin.Label;
+
+                MoveBuildMenuHintRows(component.m_buildMenuHintsKB, buildHints.Find("Keyboard"), donorKeyHints, templateChip, labelColor);
+                MoveBuildMenuHintRows(component.m_buildMenuHintsGP, buildHints.Find("Gamepad"), donorKeyHints, templateChip, labelColor);
+            }
+            catch (Exception e)
+            {
+                Debug.LogWarning("[Auga] build menu key hints port failed, they stay hidden: " + e);
+            }
+        }
+
+        private static void MoveBuildMenuHintRows(GameObject[] rows, Transform list, Transform donorKeyHints, Image templateChip, Color labelColor)
+        {
+            if (rows == null || list == null)
+            {
+                return;
+            }
+
+            // Reverse so the rows keep vanilla's order when each goes to the top of Auga's list.
+            for (var index = rows.Length - 1; index >= 0; --index)
+            {
+                var row = rows[index];
+                if (row == null || !row.transform.IsChildOf(donorKeyHints))
+                {
+                    continue;
+                }
+
+                row.transform.SetParent(list, false);
+                row.transform.SetAsFirstSibling();
+
+                var element = row.GetComponent<LayoutElement>() ?? row.AddComponent<LayoutElement>();
+                element.minHeight = 20f;
+                element.preferredHeight = 20f;
+                element.flexibleHeight = 0f;
+                element.preferredWidth = 300f;
+                if (row.transform is RectTransform rowRect)
+                {
+                    rowRect.sizeDelta = new Vector2(300f, 20f);
+                }
+
+                var rowLayout = row.GetComponent<HorizontalLayoutGroup>();
+                if (rowLayout != null)
+                {
+                    rowLayout.padding = new RectOffset(0, 0, 0, 0);
+                    rowLayout.spacing = 4f;
+                    rowLayout.childAlignment = TextAnchor.MiddleRight;
+                    rowLayout.childControlWidth = true;
+                    rowLayout.childControlHeight = true;
+                    rowLayout.childForceExpandWidth = false;
+                    rowLayout.childForceExpandHeight = false;
+                }
+
+                // Auga reads "[E] Use", vanilla "Use [E]": the label goes last.
+                var label = row.transform.Find("Text");
+                if (label != null)
+                {
+                    label.SetAsLastSibling();
+                }
+
+                // Only the key chips take Auga's chip art; icons such as the mouse wheel keep their sprite.
+                foreach (var chip in row.GetComponentsInChildren<Image>(true).Where(i => i.name.StartsWith("key_bkg")))
+                {
+                    if (templateChip != null && templateChip.sprite != null)
+                    {
+                        chip.sprite = templateChip.sprite;
+                        chip.color = templateChip.color;
+                        chip.type = templateChip.type;
+                    }
+
+                    var chipLayout = chip.GetComponent<VerticalLayoutGroup>();
+                    if (chipLayout != null)
+                    {
+                        chipLayout.padding = new RectOffset(5, 5, 1, 1);
+                    }
+                }
+
+                foreach (var text in row.GetComponentsInChildren<TMP_Text>(true))
+                {
+                    var isKey = text.name == "Key";
+                    SettingsSkin.SetFont(text, isKey ? SettingsSkin._bold : SettingsSkin._regular);
+                    text.enableAutoSizing = false;
+                    text.fontSize = isKey ? 13f : 16f;
+                    text.fontStyle = isKey ? FontStyles.UpperCase : FontStyles.Normal;
+                    text.textWrappingMode = TextWrappingModes.NoWrap;
+                    text.color = isKey ? SettingsSkin.Bright : labelColor;
+                    text.alignment = isKey ? TextAlignmentOptions.Center : TextAlignmentOptions.MidlineRight;
+                    text.overflowMode = TextOverflowModes.Overflow;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Valheim 1.0 port (#59): FoodPanel_HUD binds no TimeRemainingText, so build one at runtime (Auga's bold font,
+        /// outlined, over the bottom of the icon ring) and switch the controller to vanilla's compact "12m" / "45s".
+        /// </summary>
+        private static void AddFoodTimeText(Transform foodPanel)
+        {
+            try
+            {
+                var controller = foodPanel != null ? foodPanel.GetComponentInChildren<PlayerPanelFoodController>(true) : null;
+                if (controller == null || controller.TimeRemainingText != null)
+                {
+                    return;
+                }
+
+                var font = Auga.Assets.SourceSansProBold != null ? Auga.Assets.SourceSansProBold : Auga.Assets.SourceSansProSemiBold;
+                if (font == null)
+                {
+                    return;
+                }
+
+                var timeObject = new GameObject("TimeRemaining", typeof(RectTransform));
+                var rect = (RectTransform)timeObject.transform;
+                rect.SetParent(controller.transform, false);
+                rect.anchorMin = rect.anchorMax = new Vector2(0.5f, 0f);
+                rect.pivot = new Vector2(0.5f, 0f);
+                rect.anchoredPosition = new Vector2(0f, 1f);
+                rect.sizeDelta = new Vector2(50f, 16f);
+                rect.SetAsLastSibling();
+
+                var text = timeObject.AddComponent<Text>();
+                text.font = font;
+                text.fontSize = 13;
+                text.alignment = TextAnchor.LowerCenter;
+                text.horizontalOverflow = HorizontalWrapMode.Overflow;
+                text.verticalOverflow = VerticalWrapMode.Overflow;
+                text.raycastTarget = false;
+                text.color = Color.white;
+                text.enabled = false;
+
+                var outline = timeObject.AddComponent<Outline>();
+                outline.effectColor = new Color(0f, 0f, 0f, 0.9f);
+                outline.effectDistance = new Vector2(1f, -1f);
+
+                controller.TimeRemainingText = text;
+                controller.CompactTimeFormat = true;
+            }
+            catch (Exception e)
+            {
+                Debug.LogWarning("[Auga] HUD food time text failed, leaving the radial fill only: " + e);
+            }
+        }
+
         private static void CopyRect(RectTransform target, RectTransform source)
         {
             target.anchorMin = source.anchorMin;
@@ -605,7 +787,20 @@ namespace Auga
         public static void Postfix(Hud __instance, Player player, float dt)
         {
             var ship = player.GetControlledShip();
-            if (ship == null || !__instance.m_shipRudderIndicator.gameObject.activeSelf)
+            if (ship == null)
+            {
+                return;
+            }
+
+            // Valheim 1.0 port (#189): vanilla moves m_shipControlsRoot to the ship's control point every frame (in
+            // LateUpdate, after MovableHudElement.Update), so the configured ShipControls position never showed.
+            // Re-apply it after vanilla has written.
+            if (__instance.m_shipControlsRoot != null && __instance.m_shipControlsRoot.TryGetComponent<MovableHudElement>(out var movable))
+            {
+                movable.Apply();
+            }
+
+            if (!__instance.m_shipRudderIndicator.gameObject.activeSelf)
             {
                 return;
             }
@@ -691,8 +886,9 @@ namespace Auga
                     else
                     {
                         component1.color = Color.gray;
-                        component3.text = "None";
-                        component3.color = Mathf.Sin(Time.time * 10f) > 0.0 ? Color.red : Color.white;
+                        // Valheim 1.0 port (hud-build-6): localised like vanilla, and no red flash when nocraftcost is on.
+                        component3.text = Localization.instance.Localize("$menu_none");
+                        component3.color = Mathf.Sin(Time.time * 10f) > 0.0 && !ZoneSystem.instance.GetGlobalKey(GlobalKeys.NoCraftCost) ? Color.red : Color.white;
                     }
                 }
 
@@ -865,6 +1061,30 @@ namespace Auga
                                     text.text = otherText;
                                     continue;
                                 }
+
+                                // Valheim 1.0 port (#185): key combos such as Tameable's "[Left Shift + E] Rename"
+                                // matched no single key and fell back to vanilla's bracket markup. Draw them with the
+                                // two-chip range row instead, its "-" separator relabelled "+".
+                                var comboKeys = textInBracket.Split(new[] { " + " }, StringSplitOptions.None);
+                                if (comboKeys.Length == 2
+                                    && _cachedKeyNames.TryGetValue(comboKeys[0].Trim(), out var firstKeyName)
+                                    && _cachedKeyNames.TryGetValue(comboKeys[1].Trim(), out var secondKeyName))
+                                {
+                                    var lineWithCombo = Object.Instantiate(HoverTextWithButtonRangePrefab, AugaHoverText, false);
+                                    lineWithCombo.SetActive(true);
+                                    var comboBindings = lineWithCombo.GetComponentsInChildren<AugaBindingDisplay>();
+                                    comboBindings[0].SetBinding(firstKeyName);
+                                    comboBindings[1].SetBinding(secondKeyName);
+                                    var separator = lineWithCombo.transform.Find("Hyphen")?.GetComponent<Text>();
+                                    if (separator != null)
+                                    {
+                                        separator.text = "+";
+                                    }
+                                    var text = lineWithCombo.transform.Find("Text").GetComponent<TextMeshProUGUI>();
+                                    text.gameObject.SetActive(true);
+                                    text.text = otherText;
+                                    continue;
+                                }
                             }
                         }
 
@@ -937,6 +1157,12 @@ namespace Auga
                 if (instruction.opcode == OpCodes.Ldstr && instruction.OperandIs(" [<color=yellow>"))
                 {
                     yield return new CodeInstruction(OpCodes.Ldstr, $" [<color={Auga.Colors.BrightestGold}>");
+                }
+                // Valheim 1.0 port (hud-bars-5): 1.0 builds the category label with one composite format string
+                // (string.Format), so the old concatenation literal above no longer exists. Both shapes are handled.
+                else if (instruction.opcode == OpCodes.Ldstr && instruction.OperandIs("{0} [<color=yellow>{1}</color>]"))
+                {
+                    yield return new CodeInstruction(OpCodes.Ldstr, $"{{0}} [<color={Auga.Colors.BrightestGold}>{{1}}</color>]") { labels = instruction.labels, blocks = instruction.blocks };
                 }
                 else
                 {

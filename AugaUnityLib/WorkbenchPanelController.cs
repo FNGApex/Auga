@@ -86,7 +86,9 @@ namespace AugaUnity
                 {
                     _rememberTabIndex = tabController.SelectedIndex;
                     tabController.SelectTab(1);
-                    WorkbenchContent.GetComponent<AugaTabController>().SelectTab(0);
+                    // Valheim 1.0 port (crafting-8): a station without a craft tab (m_hasCraftTab = false) opens on Upgrade.
+                    var station = player.GetCurrentCraftingStation();
+                    WorkbenchContent.GetComponent<AugaTabController>().SelectTab(station != null && !station.m_hasCraftTab ? 1 : 0);
                 }
                 else if (_rememberTabIndex >= 0)
                 {

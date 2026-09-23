@@ -499,10 +499,97 @@ namespace Auga
             startup.m_passwordError = AdoptLabel(errorSlot, startup.m_passwordError, out var errorAdopted);
             PasswordErrorAdopted = errorAdopted;
 
-            // Valheim 1.0 port left vanilla (hidden): m_crossplayServerToggle, the two
-            // m_samePlatformOnlyToggle* and m_serverOptionsButton / m_serverOptions (the world modifiers
-            // window). Auga's 2023 world panel has no row for them; the toggles keep their PlatformPrefs
-            // value and Update only touches the button when it is visible, which it never is.
+            // m_samePlatformOnlyToggle* stay vanilla (hidden): they are console-only (PlayStation) in 1.0.
+            SetupWorldOptions(startup, startGame);
+        }
+
+        /// <summary>
+        /// Valheim 1.0 port: world modifiers (the "Server Options" button and its ServerOptionsGUI window) and the
+        /// crossplay toggle are new in 1.0, so Auga's 2023 world panel has no place for them and they sat in the hidden
+        /// vanilla donor: a new world could not get modifiers. The button and toggle are cloned from Auga's own New
+        /// button and Community Server toggle (so they look like Auga), labelled with the vanilla texts, and wired to
+        /// the game's own handlers; the vanilla modifiers window moves next to Auga's panel.
+        /// </summary>
+        private static void SetupWorldOptions(FejdStartup startup, Transform startGame)
+        {
+            var worldPanel = F(startGame, "Panel/WorldPanel");
+            if (worldPanel == null)
+            {
+                return;
+            }
+
+            if (startup.m_serverOptions != null)
+            {
+                startup.m_serverOptions.transform.SetParent(startGame, false);
+                startup.m_serverOptions.transform.SetAsLastSibling();
+            }
+
+            var newButton = F(worldPanel, "NewButton") as RectTransform;
+            var removeButton = F(worldPanel, "RemoveButton") as RectTransform;
+            if (newButton != null && removeButton != null && startup.m_serverOptionsButton != null)
+            {
+                var vanillaLabel = startup.m_serverOptionsButton.GetComponentInChildren<TMP_Text>(true);
+                var options = Object.Instantiate(newButton, worldPanel, false);
+                options.name = "ServerOptionsButton";
+                // Three buttons in the row the two used: same gap, row centred on where it was. The modifiers button is
+                // wider ("World Modifiers" wrapped to two tiny lines at 122 px); its art children are sized with it.
+                var width = newButton.rect.width;
+                var wideWidth = width + 44f;
+                var gap = (newButton.anchoredPosition.x - removeButton.anchoredPosition.x) - width;
+                var centre = (newButton.anchoredPosition.x + removeButton.anchoredPosition.x) / 2f;
+                var left = centre - (width + width + wideWidth + 2f * gap) / 2f;
+                removeButton.anchoredPosition = new Vector2(left + width / 2f, removeButton.anchoredPosition.y);
+                newButton.anchoredPosition = new Vector2(left + width + gap + width / 2f, newButton.anchoredPosition.y);
+                options.anchoredPosition = new Vector2(left + 2f * (width + gap) + wideWidth / 2f, newButton.anchoredPosition.y);
+                options.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, wideWidth);
+                foreach (RectTransform child in options)
+                {
+                    if (Mathf.Abs(child.rect.width - width) < 2f)
+                    {
+                        child.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, wideWidth);
+                    }
+                    else if (child.GetComponent<TMP_Text>() != null)
+                    {
+                        child.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, child.rect.width + 44f);
+                    }
+                }
+
+                var label = options.GetComponentInChildren<TMP_Text>(true);
+                if (label != null)
+                {
+                    label.text = vanillaLabel != null && !string.IsNullOrEmpty(vanillaLabel.text) ? vanillaLabel.text : "World Modifiers";
+                    label.enableAutoSizing = true;
+                    label.fontSizeMin = 10;
+                }
+
+                var button = options.GetComponent<Button>();
+                if (button != null)
+                {
+                    button.onClick = new Button.ButtonClickedEvent();
+                    button.onClick.AddListener(startup.OnServerOptions);
+                    startup.m_serverOptionsButton = button;
+                }
+            }
+
+            var publicToggle = FC<Toggle>(worldPanel, "CheckboxRow/StartPublicGameToggle");
+            if (publicToggle != null && startup.m_crossplayServerToggle != null)
+            {
+                var vanillaToggle = startup.m_crossplayServerToggle;
+                var vanillaLabel = vanillaToggle.GetComponentInChildren<TMP_Text>(true);
+                var crossplay = Object.Instantiate(publicToggle, publicToggle.transform.parent, false);
+                crossplay.name = "CrossplayToggle";
+                // Vanilla only reads isOn (OnWorldStart, the "crossplay" pref) and sets interactable (Update).
+                crossplay.onValueChanged = new Toggle.ToggleEvent();
+                crossplay.isOn = vanillaToggle.isOn;
+
+                var label = crossplay.transform.Find("Label")?.GetComponent<Text>();
+                if (label != null)
+                {
+                    label.text = vanillaLabel != null && !string.IsNullOrEmpty(vanillaLabel.text) ? vanillaLabel.text : "Crossplay";
+                }
+
+                startup.m_crossplayServerToggle = crossplay;
+            }
         }
 
         /// <summary>
