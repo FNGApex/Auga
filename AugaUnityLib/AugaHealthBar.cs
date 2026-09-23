@@ -49,6 +49,11 @@ namespace AugaUnity
         public virtual void Start()
         {
             TickPrefab.gameObject.SetActive(false);
+            // GuiBar.SetValue re-arms m_delayTimer on every rise while m_smoothFill is set, so healing applied every
+            // frame (regen mods) keeps the health fill frozen. HealthBar.prefab ships 0.5 s; stamina/eitr already use 0.
+            // Found by Morgott (UberMorgott/Valheim-Mod-Auga-Fork@1ba3882).
+            if (FastBar != null)
+                FastBar.m_changeDelay = 0f;
             LateUpdate();
         }
 

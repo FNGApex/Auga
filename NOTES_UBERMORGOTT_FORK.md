@@ -27,6 +27,8 @@ Tags used below:
 
 - **[us]**: applies to our port and is not handled yet. Their finding, not yet reproduced by us.
 - **[done]**: our port already handles it.
+- **[stretch]**: deferred to `STRETCH.md` (stretch goals before the first alpha).
+- **[not reproduced]**: checked by us and not seen.
 - **[info]**: background, or only relevant if we restyle vanilla objects the way they do.
 
 To look at their code again, clone it with `git -c core.longpaths=true clone https://github.com/UberMorgott/Valheim-Mod-Auga-Fork`.
@@ -34,20 +36,22 @@ A plain Windows checkout fails on long paths.
 
 ## 1. Mod compatibility
 
+All mod-compatibility items are deferred to `STRETCH.md` (user decision, 2026-09-22).
+
 This is the most valuable part: they tested with the installed mod builds and decompiled them with ilspycmd.
 
-- **[us] EAQS 3.1.1 slots sit offset from Auga's paper doll.** EAQS's `AugaPanel.UpdatePanel` (`AugaPanel.cs:101-113`)
+- **[stretch] EAQS 3.1.1 slots sit offset from Auga's paper doll.** EAQS's `AugaPanel.UpdatePanel` (`AugaPanel.cs:101-113`)
   calls `API.Panel_Create(m_player, (255,352))`, which centres the pivot (`API.cs:109`, done this way since 2021). EAQS
   then sets only the anchors to (0,1) and `anchoredPosition = (752,-166)` and never touches the pivot. Its slot maths
   assumes a top-left pivot. The cells live in its own `EaqsSlotRoot`, placed at `m_gridRoot`'s reference point
   (`EquipmentPanel.cs:611-631`). Net offset between cells and art: **(+131.5, -180)**. The bug is on EAQS's side.
   Changing `Panel_Create`'s pivot globally would break EpicLoot, which also calls it. Their options were an EAQS-side
   fix, or pinning `EaqsSlotRoot` / special-casing the pivot for EAQS. Neither was tried before they dropped the API.
-- **[us] EAQS adds hidden inventory rows.** It sets `m_inventory.m_height = BaseRows + 3` and moves those cells into its
+- **[stretch] EAQS adds hidden inventory rows.** It sets `m_inventory.m_height = BaseRows + 3` and moves those cells into its
   Auga panel from an `InventoryGrid.UpdateGui` postfix. Our `PlayerInventory_Setup.InventoryGrid_UpdateGui_Patch`
   re-parents **every** PlayerGrid element into `Top` / `Main/Grid`, so it fights EAQS for those cells. Their fix was to
   re-parent only elements that are still under `m_gridRoot`, and to run after EAQS.
-- **[us] How consumers bind to Auga.API.**
+- **[stretch] How consumers bind to Auga.API.**
   - EAQS, EpicLoot and VNEI ship a self-redirecting stub. It looks for assembly `Auga`, type `Auga.API` and GUID
     `randyknapp.mods.auga`, all of which we keep.
   - AAACrafting ships a 72-method internal stub that binds through **blaxxun's APIManager**. Auga must run
@@ -69,14 +73,14 @@ This is the most valuable part: they tested with the installed mod builds and de
   Stub type drift: the stub's `CustomVariantPanel_Enable` returns `Text` where Auga returns `TMP_Text`, and
   `PlayerPanelTabData.TabTitle` / `WorkbenchTabData.TabTitle` have the same `Text` vs `TMP_Text` split. Nobody calls
   these today, so there is no runtime effect.
-- **[us] EpicLoot 0.14.2.** `HasAuga` is never assigned, so EpicLoot always takes its vanilla UI path.
+- **[stretch] EpicLoot 0.14.2.** `HasAuga` is never assigned, so EpicLoot always takes its vanilla UI path.
   `MagicSearchField..ctor` reads `InventoryGui.m_crafting.Find("RepairButton/Glow")`, and `MagicPages.Reset` NREs after
   that. Our port keeps vanilla `root/Crafting` as a hidden donor, so the lookup probably succeeds. EpicLoot's UI would
   then land inside the hidden panel. Unverified.
-- **[us] VNEI 0.17.6** (`Plugin.cs:335`) and **AdventureBackpacks** (`Patches/GuiBar.cs:22`) detect Auga by GUID.
+- **[stretch] VNEI 0.17.6** (`Plugin.cs:335`) and **AdventureBackpacks** (`Patches/GuiBar.cs:22`) detect Auga by GUID.
   Under Auga, AdventureBackpacks skips its 54 px durability-bar width. While they still used the Auga GUID, they saw a
   `MainVneiHandlerAuga` NRE. They did not record the cause, so check it when VNEI is tested with our port.
-- **[us] StarLevelSystem and MonsterModifiers break our enemy HUD** (their commits `b3b434e`, `6252c5f`).
+- **[stretch] StarLevelSystem and MonsterModifiers break our enemy HUD** (their commits `b3b434e`, `6252c5f`).
   - Our `EnemyHud_Awake_Patch` replaces the whole object (`DirectObjectReplace`). Other mods' `EnemyHud.Awake`
     postfixes then run on a destroyed instance, which NREs at startup for StarLevelSystem.
   - Their fix: keep the vanilla EnemyHud object, its Canvas and its Awake, and swap only `HudRoot` and the template
@@ -100,11 +104,13 @@ This is the most valuable part: they tested with the installed mod builds and de
 
 ## 2. Game 1.0 UI facts
 
-- **[us] Double sound on mouse clicks** (commit `ab08cc3`). About 130 bundle buttons have `ButtonSfx.m_selectSfxPrefab`
+- **[not reproduced] Double sound on mouse clicks** (commit `ab08cc3`). The user checked on 2026-09-22 and clicks do
+  not play twice with our port. About 130 bundle buttons have `ButtonSfx.m_selectSfxPrefab`
   set; vanilla sets it on 2 of 59. Mouse-down selects (select sfx) and mouse-up clicks (click sfx) more than 2 frames
   later, past `SfxTimer`, so a single click sounds like two. Their fix: `ButtonSfx.OnSelect` skips `PointerEventData`,
   so keyboard and gamepad keep the select sound. Our port has no such patch.
-- **[us] The HP bar stalls under continuous healing** (commit `1ba3882`, `tools/guibar-delay-check.ps1`). `GuiBar.SetValue`
+- **[done] The HP bar stalls under continuous healing** (commit `1ba3882`, `tools/guibar-delay-check.ps1`). Fixed on
+  2026-09-22 in `AugaHealthBar.Start` and verified with ClaudeHeim `hp-regen.chs`. `GuiBar.SetValue`
   re-arms `m_delayTimer = m_changeDelay` on every call where the value rises and `m_smoothFill` is set
   (`GuiBar.cs:73-76`). A mod that heals every frame, such as SmoothRegen, keeps re-arming the timer, so the fill never
   moves while the slow bar runs ahead. Vanilla heals once every 10 s, so vanilla never shows it. Their fix: set
