@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using JetBrains.Annotations;
 using TMPro;
 using UnityEngine;
@@ -308,6 +308,7 @@ namespace Auga
                 colorValues.TextColors.pressedColor = pressed;
                 colorValues.TextColors.selectedColor = selected;
                 colorValues.TextColors.disabledColor = disabled;
+                colorValues.UseChildLabel = true;
             }
 
             var text = button.GetComponentInChildren<TMP_Text>();

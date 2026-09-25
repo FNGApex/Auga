@@ -141,14 +141,14 @@ What the example references from the API (this is the full consumer surface it e
 
 ### [ok] api-build/api-8: AssemblyInfo.cs already carries the API-configuration branch and is shared correctly by both projects
 
-- Status: open
+- Status: closed 2026-09-24 - informational (verified OK, no action needed)
 - Evidence: Auga\Properties\AssemblyInfo.cs:7-11 `#if API [assembly: AssemblyTitle("AugaAPI")] #else [assembly: AssemblyTitle("Auga")] #endif` and :38-44 `#if API AssemblyVersion("1.6.0") #else AssemblyVersion("1.3.12.0")`. The SDK Auga.csproj sets `<GenerateAssemblyInfo>false</GenerateAssemblyInfo>` (Auga.csproj:10) and does not exclude the file (only API.External.cs, InventoryGrid_Patches.cs, Settings_Setup.cs are removed at :52,:54), so the default glob compiles it — no duplicate-attribute conflict. Linking the same file into AugaAPI.csproj with `API` defined therefore reproduces the historical AugaAPI identity (title AugaAPI, version 1.6.0) with no edits. Note the API-side version is a hand-maintained constant, unrelated to Auga.cs:80 `[BepInPlugin(PluginID, "Project Auga", Version)]`.
 - Fix: None. Bump AssemblyInfo.cs:39-40 to 1.7.0 when you ship the 1.0-port API so consumers can tell the builds apart.
 - Test: After building, check the dll's file properties / `AssemblyName.GetAssemblyName("Auga/bin/API/AugaAPI.dll")` reports AugaAPI 1.6.0.
 
 ### [ok] api-build/api-9: API.cs and API.Common.cs are already 1.0-clean, so the stub build needs no source changes beyond the `partial` keyword
 
-- Status: open
+- Status: closed 2026-09-24 - informational (verified OK, no action needed)
 - Evidence: The only 1.0 edit in the shared API sources is API.Common.cs:1, `git diff HEAD -- Auga/API.Common.cs` -> `-using Fishlabs;` / `+using GUIFramework;` (for `GuiInputField` at :40) — and `GUIFramework.GuiInputField` exists in 1.0's gui_framework.dll (scratchpad\decomp_gui_framework\GUIFramework\GuiInputField.cs), matching PORT_1.0.md's note that ui_lib.dll is gone. API.cs is unmodified (`git status --short` does not list Auga/API.cs). Under `API`, every non-void method has an `#else` return (spot-checked API.cs:116, 134, 228, 245, 262, 539, 549, 559, 766, 921, 1012, 1022, 1054, 1101) so there is no CS0161, and the three `#if ! API` private helpers (TextBoxCheck :567, ComplexTooltipCheck :689, RequirementsPanelCheck :994) plus the AugaUnity/Linq/Threading usings (:7-12) are already excluded. All the non-API-branch AugaUnity types it needs still exist (e.g. AugaCraftingControls at AugaUnityLib\AugaCraftingControls.cs:9, used by API.cs:1083-1096).
 - Fix: None, except adding `partial` to API.cs:17 as required by api-3.
 - Test: 
@@ -382,21 +382,21 @@ What the example references from the API (this is the full consumer surface it e
 
 ### [ok] menus/menus-7: Connecting / Password do show and hide correctly on a multiplayer join - vanilla toggles the inner Auga clone, not the always-active canvas holder
 
-- Status: open
+- Status: closed 2026-09-24 - informational (verified OK, no action needed)
 - Evidence: Connection_Setup.cs:14-24 assigns ZNet.m_passwordDialog / m_connectingDialog the RectTransform of the object InstantiateFilled returns, which is the INNER clone; PortCarryOver.WrapInCanvas (PortCarryOver.cs:114-175) then reparents that clone under a new always-active '<name>_AugaCanvas' holder that carries the donor's Canvas/CanvasScaler/GuiScaler/GraphicRaycaster. Every 1.0 call site uses m_xxxDialog.gameObject: decomp/ZNet.cs:340-341 (Awake hide), :762 and :819 (Connect -> show connecting), :910 (handshake -> hide connecting), :914 (show password), :936 (hide password), :900/:905/:2383 (activeSelf/activeInHierarchy queries read by Menu.Update's open guard). All of those hit the inner clone, whose parent holder is permanently active, so activeInHierarchy tracks activeSelf. Live proof of the shape: auga_ui_ingame.txt:12 'AugaConnecting(Clone)_AugaCanvas order=3100 active=True' with :14 'AugaConnecting(Clone) (inactive)', :33/:35 the same for AugaPassword at order 3000, and :54 'Connecting_VanillaDonor order=3100 active=False'. The empty active holders cannot block input: they have no Graphic of their own and AugaCanvasPad is inactive. decomp/ZNet.cs:915 GetComponentInChildren<GuiInputField>() resolves because the clone is activated on line 914 first and panel/TextFieldLegacy is active (auga_ui_ingame.txt:38). Text content is present and will localize on first show (AugaConnecting.prefab:81 '$menu_connecting', AugaPassword.prefab:82 '$menu_enterpassword', Localize.Start deferred until the root is first enabled).
 - Fix: No change needed.
 - Test: Join a password-protected dedicated server: the Auga connecting panel with the loading eye appears over the loading screen, is replaced by the Auga password panel, and both disappear after the password is accepted.
 
 ### [ok] menus/menus-8: 1.0's new Hud.SetVisible reposition of Menu.m_root is a no-op for Auga
 
-- Status: open
+- Status: closed 2026-09-24 - informational (verified OK, no action needed)
 - Evidence: decomp/Hud.cs:455-458 (new in 1.0 - decomp_old_assembly_valheim/Hud.cs:366 SetVisible has no such block) assigns Menu.instance.m_root.transform.localPosition = m_rootObject.transform.localPosition. Auga's m_root is AugaMenu(Clone)/MenuRoot, whose prefab RectTransform has m_AnchoredPosition {x:0,y:0} and m_LocalPosition {x:0,y:0,z:0} (AugaUnity/Assets/Prefabs/AugaMenu.prefab, GameObject 5026525813159011707), so the 'HUD visible' branch writes the value it already has and the 'HUD hidden' branch moves it off screen exactly as vanilla does. JoinCode.m_instance is untouched by Auga, so the unguarded dereference on line 457 is safe.
 - Fix: No change needed.
 - Test: Toggle the HUD off and on (Ctrl+F3 by default) and then open the pause menu - it appears centred, not offset.
 
 ### [ok] menus/menus-9: m_saveButton / m_playerListButton survive the 1.0 rename via FormerlySerializedAs and point at Auga's own entries
 
-- Status: open
+- Status: closed 2026-09-24 - informational (verified OK, no action needed)
 - Evidence: decomp/Menu.cs:38-43 declares [FormerlySerializedAs("saveButton")] m_saveButton and [FormerlySerializedAs("menuCurrentPlayersListButton")] m_playerListButton. AugaMenu.prefab:436-437 still stores those old names, and the referenced objects resolve to the MenuButton prefab instances whose m_Name overrides are 'CurrentPlayerList' (instance 3899535841180749670, onClick = Menu.OnCurrentPlayers) and 'Save' (instance 6991826969043310379, onClick = Menu.OnManualSave). So SetButtonsEnabled's save-cooldown and single-player player-list rules (decomp/Menu.cs:249,251) drive Auga's own entries, and Menu.Update's interactable/UpdateNavigation cooldown loop works.
 - Fix: No change needed.
 - Test: Open the pause menu in single player: no 'Player list' entry. Press Save, close and reopen: Save is greyed out for 60 s and the 'last saved' line appears.
@@ -449,14 +449,14 @@ What the example references from the API (this is the full consumer surface it e
 
 ### [ok] misc/misc-5: Store: StoreGui.instance is Auga's, and the new 1.0 shop code paths all resolve on Auga's prefab
 
-- Status: open
+- Status: closed 2026-09-24 - informational (verified OK, no action needed)
 - Evidence: The Awake transpiler (Store_Setup.cs:62-95) replaces only instrs[0] (`ldarg.0` of `m_instance = this`), so Awake becomes `m_instance = SetupAugaStoreGui(this)`; both 1.0 guards hold (root still "Store_Screen", rootPanel still "Store": auga_ui_ingame.txt:3387-3388), and re-entry from the clone's nested Awake is blocked by the `name.StartsWith("Auga")` check at Store_Setup.cs:16. Dump confirms `AugaStoreScreen(Clone) [StoreGui, Localize]` active at 600-602 with the vanilla canvas inactive. 1.0's new FillList element-centring evaluates to 0 (ListRoot and ItemElement are both 230 wide: auga_ui_ingame.txt:638,646); `element.GetComponent<Button>()` resolves because Auga's ColorButtonText derives from Button (AugaUnityLib/ColorButtonText.cs:6); `Utils.FindChild(element, "price")` and Find("icon"/"name"/"selected") all exist (auga_ui_ingame.txt:638-645); the prefab's two UnityEvents still name live methods (OnBuyItem at decomp/StoreGui.cs:132, OnSellItem at :200). 1.0's new prefab-less "Player Key Item" entries are handled: Store_Setup.cs:111-116 null-guards m_prefab, and UITooltip_Patch.cs:39/66 then falls through to ComplexTooltip.SetDefault, which renders the element's icon plus vanilla's m_topic/m_tooltip (AugaUnityLib/ComplexTooltip.cs:797-832). The only genuinely unassigned StoreGui field is m_tooltipAnchor (already AUDIT [world-ui-2]); m_coinPrefab in the same log line is a diagnostic artefact - PortDiagnostics dedupes per type and the first Awake to finish is the clone's, nested inside Object.Instantiate, two statements before m_coinPrefab is set.
 - Fix: No change needed. If [world-ui-2] is acted on and Store_Setup is converted to DirectObjectReplace, add a TooltipAnchor child to AugaStoreScreen.prefab first: otherwise PortCarryOver.Fill will copy m_tooltipAnchor from the donor and UITooltip.AnchorTooltip will reparent the live tooltip under the inactive donor (the trap already described in [widgets-10]).
 - Test: `spawn Haldor`, trade with him, click through several items (tooltip + Buy + Sell) and check the buy effect fires.
 
 ### [ok] misc/misc-6: Radial menu, long-press indicator, SwitchCursor and the scaled viewport co-exist with Auga - no blocked or doubled input
 
-- Status: open
+- Status: closed 2026-09-24 - informational (verified OK, no action needed)
 - Evidence: Auga adds no patch to ZInput (the only typeof(ZInput) patch is Hud_Setup.cs:631 on ZInput.Save), none to Player.TakeInput/HandleRadialInput, and none to anything in Valheim.UI or LongPressIndicator; a case-insensitive grep for "radial" over Auga/ and AugaUnityLib/ returns a single comment (SettingsSkin.cs:11). Player.HandleRadialInput (decomp/Player.cs:1134-1167) only consults Hud.instance.m_radialMenu/m_config and Hud.IsPieceSelectionVisible, all of which survive because the HUD is modified in place (hudroot/ValheimRadial intact at auga_ui_ingame.txt:1935). The 14 vanilla `!Hud.InRadial()` gates (GameCamera, HotkeyBar, Player, Menu, InventoryGui) still read the same live RadialBase, so Auga's hotbar/inventory cannot double-handle radial input. LongPressIndicator keeps its own 2000-order canvas and only reads ZInput; SwitchCursor is a 6-line Start(); Scaled 3D Viewport is an untouched empty canvas at order 0.
 - Fix: None.
 - Test: With a gamepad: open the radial over the Auga hotbar and confirm the hotbar stops reacting to the stick while it is open; move an item to a hotbar slot from the radial and confirm Auga's hotbar updates.
@@ -507,7 +507,7 @@ What the example references from the API (this is the full consumer surface it e
 
 ### [cosmetic] api-surface/api-7: Button_SetTextColors' per-state label colors are dead: ColorButtonTextValues.Text is null on every Auga button prefab
 
-- Status: open
+- Status: FIXED 2026-09-24 - AugaUnityLib/ColorButtonText.cs: with the legacy Text ref empty, a button whose colours were set by API.Button_SetTextColors (ColorButtonTextValues.UseChildLabel) tints its child TMP label; Auga's own buttons are unchanged. Verified in game (auga-api.chs): label tint white -> red (1,0,0) on hover.
 - Evidence: API.cs:267-286 fills `ColorButtonTextValues.TextColors`, but AugaUnityLib/ColorButtonText.cs:20-23 only applies them when `values.Text != null`, and ColorButtonText.cs:32 types that field `UnityEngine.UI.Text` while the button labels are TMP. Every prefab the API instantiates has the ref empty: ButtonSmall.prefab:127, ButtonMedium.prefab:128, ButtonFancy.prefab:127, ButtonSettings.prefab:127, ButtonDiamond.prefab:127, ButtonToggle.prefab:81 all `Text: {fileID: 0}` (ButtonSmall's label is TextMeshProUGUI, ButtonSmall.prefab:281). Auga's own live buttons are in the same state (ui_audit/auga_inventory_at_workbench.txt:961-963: CraftButton [ColorButtonText, ColorButtonTextValues] with a TMP "Label"). Only the flat `baseTextColor` assignment (API.cs:280-284) takes effect. Pre-existing upstream, not a port regression.
 - Fix: Retype ColorButtonTextValues.Text to TMP_Text and re-assign the label in the Unity project (needs the bundle rebuild); until then, document Button_OverrideTextColor (API.cs:289-304, works) as the supported path.
 - Test: API.SmallButton_Create + Button_SetTextColors with a red highlighted colour, hover the button: the label colour never changes.
@@ -521,28 +521,28 @@ What the example references from the API (this is the full consumer surface it e
 
 ### [ok] api-surface/api-9: Tab plumbing, panels and prefabs the API needs all exist in the live 1.0 hierarchy
 
-- Status: open
+- Status: closed 2026-09-24 - informational (verified OK, no action needed)
 - Evidence: WorkbenchPanelController + AugaTabController + AugaCraftingControls all live on root/RightPanel (ui_audit/auga_inventory_at_workbench.txt:586); the container AddPlayerPanelTab Find()s exists (root/RightPanel/TabContent, :653); tab buttons carry Button and TabButton on the same GameObject so Workbench_GetCraftingTabButton/GetUpgradeTabButton's GetComponent<Button>() resolves (:645-648); GenericCraftingRequirements with its UpgradeRequirementsWireFrame "Framework" exists for RequirementsPanel_SetWires (:919, :945; GenericCraftingRequirements.prefab:592-597 RequirementList/Icon, :604 WireFrame); ItemInfo ComplexTooltip (:747); CustomVariantButton/CustomVariantDialog/its TMP text (:815, :975-978); ResultsPanelPrefab assigned for Workbench_CreateNewResultsPanel (TabContent_Crafting.prefab:570); AugaPanelBase has the "Background" child Panel_Create destroys (AugaPanelBase.prefab:128) and DividerMedium/Large have the "Content" child (DividerMedium.prefab:364, DividerLarge.prefab:364); all API assets are in the rebuilt bundle (augaassets.manifest:528/541/552/559/582/593/599/603/604/605/614/615).
 - Fix: No change needed.
 - Test: 
 
 ### [ok] api-surface/api-10: GetCraftingControls and API-call timing verified live on 1.0
 
-- Status: open
+- Status: closed 2026-09-24 - informational (verified OK, no action needed)
 - Evidence: RightPanel.prefab:2404-2412 assigns every AugaCraftingControls field, and the port's own probe proves they resolve at runtime: census_auga/LogOutput.log:245-251 prints "ACP is Awake." then "API AAA is null: False" / "API InputAmount is null: False" (probe at PlayerInventory_Setup.cs:102-104). The same lines prove ordering: Auga instantiates the RightPanel inside its InventoryGui.Awake postfix (PlayerInventory_Setup.cs:101) marked [HarmonyPriority(Priority.First)] (PlayerInventory_Setup.cs:34) and the components' Awake runs immediately, so WorkbenchPanelController.instance/AugaCraftingControls.Instance are set before a consumer's default-priority InventoryGui.Awake postfix (the pattern AugaApiExample/InventoryGui_Patch.cs:9 uses).
 - Fix: No change needed, but note the public type change: API.Common.cs:1/:40 now exposes GUIFramework.GuiInputField (1.0 moved it out of ui_lib/Fishlabs), so consumers must reference gui_framework.dll and anything compiled against the old Fishlabs type breaks at load.
 - Test: 
 
 ### [ok] api-surface/api-11: Tooltip_MakeSimpleTooltip / MakeItemTooltip / MakeFoodTooltip / MakeStatusEffectTooltip / MakeSkillTooltip still work on 1.0
 
-- Status: open
+- Status: closed 2026-09-24 - informational (verified OK, no action needed)
 - Evidence: API.cs:307-406 add UITooltip + the marker component; Auga/UITooltip_Patch.cs:31-73 intercepts UITooltip.UpdateTextElements and routes ItemTooltip/FoodTooltip/StatusTooltip/SkillTooltip into ComplexTooltip, and the port's new prefix (UITooltip_Patch.cs:12-25) drops a leftover tooltip of the other kind, which 1.0 needs because OnHoverStart now reuses the instance (decomp_assembly_guiutils/UITooltip.cs:153-155 vs decomp_old_assembly_guiutils/UITooltip.cs:142). Caveat unchanged from 2023: UITooltip.OnHoverStart only shows anything when m_text or m_topic is non-empty (decomp_assembly_guiutils/UITooltip.cs:146), so consumers must still set UITooltip.m_topic/m_text themselves - the API methods do not.
 - Fix: Optionally have Tooltip_MakeItemTooltip et al. seed `uiTooltip.m_topic = " "` so the tooltip is reachable without extra consumer code; otherwise document the requirement.
 - Test: 
 
 ### [ok] api-surface/api-12: ComplexTooltip_* content/state methods and RequirementsPanel_* are unaffected by the port
 
-- Status: open
+- Status: closed 2026-09-24 - informational (verified OK, no action needed)
 - Evidence: The listener/preprocessor hooks are static events (ComplexTooltip.cs:122-128, 884-887); SetTopic/SetSubtitle/SetDescription/SetIcon/EnableDescription/GenerateItemSubtext/ClearTextBoxes/AddDivider/AddTwoColumnTextBox/AddCenteredTextBox all use slots that are filled on both tooltip prefabs (InventoryTooltip.prefab:1732-1746, TabContent_Crafting.prefab:2858-2864); RequirementsPanel_GetIcon/RequirementList/SetWires read CraftingRequirementsPanel.Icon/RequirementList/WireFrame, all assigned (GenericCraftingRequirements.prefab:592-597, :604). One pre-existing caveat: ComplexTooltip_SetItem/SetItemNoTextBoxes need a spawned player - ComplexTooltip.cs:373 `Player.m_localPlayer.GetSkillLevel(...)` and :472/:479 are unguarded, so calling them from the main menu or character select NREs.
 - Fix: Guard ComplexTooltip.GenerateItemTextBoxes with an early `if (Player.m_localPlayer == null) return;` if menu-time item tooltips are wanted.
 - Test: 
@@ -620,42 +620,42 @@ What the example references from the API (this is the full consumer surface it e
 
 ### [ok] text/text-ok-1: Canvas sorting orders are preserved for every replaced root in this group — no z-order clash with the untouched Tutorial/Captions roots
 
-- Status: open
+- Status: closed 2026-09-24 - informational (verified OK, no action needed)
 - Evidence: vanilla_ui_ingame.txt vs auga_ui_ingame.txt root lines: Chat 300, TopLeftMessage 500, Chat_box 900, HudMessage 1000, TextInput 1100, TextViewer 1200 are identical on both sides (PortCarryOver.WrapInCanvas copies renderMode/sortingOrder/sortingLayerID from the donor, PortCarryOver.cs:131-139). The untouched Tutorial (1400), Captions_DirectionIndicators (1500) and ClosedCaptions (1600) sit above them in both builds exactly as they do in vanilla.
 - Fix: none
 - Test: 
 
 ### [ok] text/text-ok-2: ClosedCaptions and Captions_DirectionIndicators co-exist with Auga harmlessly — the 1.0 captions feature is a stub that never spawns anything
 
-- Status: open
+- Status: closed 2026-09-24 - informational (verified OK, no action needed)
 - Evidence: decomp\ClosedCaptions.cs:95-97 — `public void RegisterCaption(ZSFX sfx, CaptionType type = CaptionType.Default) { }` has an empty body, even though ZSFX.cs:302-304 calls it whenever `ClosedCaptions.Valid`; and Awake destroys every existing child (:67-70). Both roots have zero descendants in all four dumps (vanilla_ui_ingame.txt:74 and :97, auga_ui_ingame.txt:761 and :798, plus census_vanilla/ui_ingame.txt:74/:97). Nothing is drawn, so nothing can overlap an Auga widget; and because ClosedCaptions' own Image alpha is lerped to 0 when the caption list is empty (:89-92), the situation is identical with and without Auga.
 - Fix: none
 - Test: 
 
 ### [ok] text/text-ok-3: Serialized-field parity for Chat/Terminal, MessageHud and TextInput — PortCarryOver had nothing to fill and Terminal's field set is unchanged in 1.0
 
-- Status: open
+- Status: closed 2026-09-24 - informational (verified OK, no action needed)
 - Evidence: auga_run4.log:249-251: `[PortDiagnostics] Chat: 0 destroyed, 1 unassigned ... m_search`, `MessageHud: 0 destroyed, 0 unassigned`, `TextInput: 0 destroyed, 0 unassigned`; no `empty references filled` line exists for any of the three (only KeyHints, Menu, PlayerCustomizaton, SkillsDialog appear). Terminal's serialized set (m_chatWindow, m_output, m_input, m_search, m_maxVisibleBufferLength) is byte-for-byte the same in decomp\Terminal.cs:313-329 and decomp_old_assembly_valheim\Terminal.cs:299-315, and m_search is explicitly null-guarded at decomp\Terminal.cs:3186 (`if (m_search == null) return;`), so AugaChat.prefab's `m_search: {fileID: 0}` is safe. Chat's only new 1.0 field is m_doubleOpenForVirtualKeyboard (already filed as text-chat-10, console-only).
 - Fix: none
 - Test: 
 
 ### [ok] text/text-ok-4: No double chat submit: Auga's chat input has no persistent UnityEvent calls, so only ChatWindowController's runtime listener fires
 
-- Status: open
+- Status: closed 2026-09-24 - informational (verified OK, no action needed)
 - Evidence: AugaChat.prefab, GuiInputField &8803336871521559843: `m_OnEndEdit / m_OnSubmit / m_OnValueChanged / OnInputSubmit` all serialize `m_Calls: []`. The single subscriber is AugaUnityLib\ChatWindowController.cs:18 `_chatHandler.m_input.OnInputSubmit.AddListener(AddToChatOutput);`, which calls `Chat.SendInput()` once (:64). GUIFramework.GuiInputField raises OnInputSubmit from its own `onSubmit` listener (decomp_gui_framework\GUIFramework\GuiInputField.cs:53, :75-83), so one Enter = one message.
 - Fix: none
 - Test: 
 
 ### [ok] text/text-ok-5: Leaving Tutorial vanilla is safe — its wooden panel is never shown in 1.0; tutorial text flows through Raven into Auga's NpcDialogLarge
 
-- Status: open
+- Status: closed 2026-09-24 - informational (verified OK, no action needed)
 - Evidence: decomp\Tutorial.cs:49-53 Awake does `m_windowRoot.gameObject.SetActive(false)` and ShowText (:76-87) only calls SpawnRaven — m_windowRoot / m_topic / m_text are never used again, so the vanilla-skinned Tutorial_wnd (auga_ui_ingame.txt:3468-3472) can never appear next to Auga's UI. Raven.Talk (decomp\Raven.cs) calls `Say(topic, text, showName: false, longTimeout: true, large: true)` -> Chat.SetNpcText(..., large: true) -> `m_npcTextBaseLarge` = Auga's NpcDialogLarge, which is correctly laid out (640x220, see text-7).
 - Fix: none
 - Test: 
 
 ### [ok] text/text-ok-6: The AugaTopLeftMessage sitting on the TopLeftMessage root does not self-destruct — PortCarryOver's AugaCanvasPad keeps it off sibling index 0
 
-- Status: open
+- Status: closed 2026-09-24 - informational (verified OK, no action needed)
 - Evidence: AugaTopLeftMessage.Update (AugaUnityLib\AugaTopLeftMessage.cs:88-96) calls StartFade() -> FadeCoroutine -> `Destroy(gameObject)` when `transform.GetSiblingIndex() == 0`, and the component is serialized on the TopLeftMessage root itself (AugaMessageHud.prefab &1650826115220848686). PortCarryOver.cs:159-163 inserts an inactive `AugaCanvasPad` as child 0 of the new canvas holder for exactly this reason, and the live hierarchy confirms it: auga_ui_ingame.txt:3458-3459 shows `AugaCanvasPad (inactive)` then `TopLeftMessage [HorizontalLayoutGroup, AugaTopLeftMessage, MovableHudElement, PortDestroyTrace]`.
 - Fix: none
 - Test: 
