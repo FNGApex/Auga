@@ -1,8 +1,8 @@
-# Valheim 1.0 port notes (local branch `port/valheim-1.0`)
+# Valheim 1.0 port notes (branch `port/valheim-1.0`, public fork FNGApex/Auga)
 
-Local work only. This repository has no license, so nothing here may be re-uploaded; the push URLs of
-both remotes are set to a dummy value on purpose. Base: `vapok/wip/1.3.13-WIP` (upstream `main` has an
-unbalanced brace in `Auga/Hud_Setup.cs`).
+This repository has no license: nothing here is re-uploaded as a release, and the push URLs of the upstream remotes
+are set to a dummy value on purpose. Base: `vapok/wip/1.3.13-WIP`. RandyKnapp's own 1.0 port is on upstream `main`
+(since 2026-09-22); `NOTES_UPSTREAM_COMPARE.md` compares the two and lists which of our fixes apply to his code.
 
 ## Building the code
 
@@ -18,12 +18,17 @@ The plugin project is labelled `net48` with `NoStdLib` and references the game's
 `mscorlib/netstandard/System/System.Core`: Harmony's `List<Label>` does not resolve through the
 netstandard2.1 facades (CS7069).
 
-## Deliberately left vanilla until the prefabs are rebuilt
+## Screens handled at runtime instead of rebuilt prefabs
 
-- Settings screen: 1.0 split `Settings` into `Valheim.SettingsGui.*` tab components. `Settings_Setup.cs`
-  is excluded from the build and `MainMenu_Setup` no longer swaps in `AugaSettings`.
-- Item split dialog: now a `SplitDialog` component on `InventoryGui.m_splitDialog`.
-- `APIManager.Patcher.Patch()` is commented out (the dll was never in the repo).
+- Settings screen: 1.0 split `Settings` into `Valheim.SettingsGui.*` tab components. `Settings_Setup.cs` is excluded
+  from the build; `SettingsSkin.cs` re-skins the live vanilla screen instead (all tabs, on-demand sub-panels).
+- Item split dialog: 1.0 has a `SplitDialog` component on `InventoryGui.m_splitDialog`; `PortSplitDialog.cs` drives
+  Auga's panel with it.
+- Remaining vanilla panels (popups, achievements, player list, world modifiers, radial, piece author): `PanelSkins.cs`
+  with the art-pass sprites (`NOTES_ART_PASS.md`).
+- Mod API: `APIManager.Patcher.Patch()` stays commented out (the dll was never in the repo). Consumers use
+  `AugaAPI.dll` (see "Mod API" below). Mods that embed the OLD Auga API shim are not patched (upstream's APIManager
+  path does that).
 
 ## Unity project (`AugaUnity/`) - prepared for Unity 6000.0.75f1 (the game's version)
 
@@ -65,7 +70,7 @@ after Auga's setup. `[Debug] PortDiagnostics = false` turns that off.
 - `Auga/SettingsSkin.cs` - re-skins the live 1.0 settings screen (all 7 tabs). `[Settings] AugaSettingsSkin`.
 - `Auga/BuildMenuSkin.cs` - re-skins `hudroot/BuildUIV2` plus its pooled piece/tag button prefabs and the selected-piece readout. `[BuildMenu] AugaBuildMenuSkin`.
 - Adrenaline bar: `AugaHealthBar.ModeType.Adrenaline` on a second copy of the eitr bar (`Hud_Setup.cs`). `[StatBars] AdrenalineBar*`.
-- Replacement screen roots get the vanilla Canvas/CanvasScaler/GuiScaler/GraphicRaycaster from their donor (`PortCarryOver.CopyCanvas`): in 1.0 every screen root is its own canvas.
+- Replacement screen roots get the vanilla Canvas/CanvasScaler/GuiScaler/GraphicRaycaster from their donor (`PortCarryOver.WrapInCanvas`): in 1.0 every screen root is its own canvas.
 
 ## Unattended testing
 
