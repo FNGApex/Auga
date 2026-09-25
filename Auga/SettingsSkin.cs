@@ -85,8 +85,11 @@ namespace Auga
 
         internal static Sprite Art(string name) => Sprites.TryGetValue(name, out var sprite) ? sprite : null;
 
-        /// <summary>Skin everything under <paramref name="scope"/> (default: the whole settings screen at <paramref name="root"/>).</summary>
-        internal static void Apply(Transform root, Transform scope = null)
+        /// <summary>
+        /// Skin everything under <paramref name="scope"/> (default: the whole settings screen at <paramref name="root"/>).
+        /// <paramref name="texts"/> false = art only; other screens (PanelSkins) style their own text.
+        /// </summary>
+        internal static void Apply(Transform root, Transform scope = null, bool texts = true)
         {
             scope = scope != null ? scope : root;
             foreach (var image in scope.GetComponentsInChildren<Image>(true))
@@ -94,9 +97,12 @@ namespace Auga
                 SkinImage(image);
             }
 
-            foreach (var text in scope.GetComponentsInChildren<TMP_Text>(true))
+            if (texts)
             {
-                SkinText(root, text);
+                foreach (var text in scope.GetComponentsInChildren<TMP_Text>(true))
+                {
+                    SkinText(root, text);
+                }
             }
 
             // Sliders and scrollbars by their component wiring rather than sprite names: not all of them share art.
@@ -145,7 +151,15 @@ namespace Auga
                 case "woodpanel_settings":
                 case "woodpanel_400_tileable":
                 case "woodpanel_password":
+                case "woodpanel_512x512":
+                case "woodpanel_trophys":
                     ReplacePanel(image);
+                    break;
+
+                case "text_field":
+                    Use(image, "TextBackdrop", new Color(0f, 0f, 0f, 0.6f));
+                    image.type = Image.Type.Sliced;
+                    image.preserveAspect = false;
                     break;
 
                 case "panel_interior_bkg_128":

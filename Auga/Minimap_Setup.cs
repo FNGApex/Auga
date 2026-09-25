@@ -117,16 +117,6 @@ namespace Auga
             minimap.m_selectedIcon2 = newMap.Find("IconPanel/Icon2/Selected").GetComponent<Image>();
             minimap.m_selectedIcon3 = newMap.Find("IconPanel/Icon3/Selected").GetComponent<Image>();
             minimap.m_selectedIcon4 = newMap.Find("IconPanel/Icon4/Selected").GetComponent<Image>();
-            // AUDIT2 hud-5: Auga's HUD prefab has the boss and death filter icons on each other's buttons (the click
-            // wiring follows the object names). Swap the sprites until the bundle is rebuilt.
-            var bossIcon = newMap.Find("IconBoss/Icon")?.GetComponent<Image>();
-            var deathIcon = newMap.Find("IconDeath/Icon")?.GetComponent<Image>();
-            if (bossIcon != null && deathIcon != null && bossIcon.sprite != null && deathIcon.sprite != null
-                && bossIcon.sprite.name.Contains("death") && deathIcon.sprite.name.Contains("boss"))
-            {
-                (bossIcon.sprite, deathIcon.sprite) = (deathIcon.sprite, bossIcon.sprite);
-            }
-
             minimap.m_selectedIconBoss = newMap.Find("IconBoss/Selected").GetComponent<Image>();
             minimap.m_selectedIconDeath = newMap.Find("IconDeath/Selected").GetComponent<Image>();
             minimap.m_selectedIcons[Minimap.PinType.Death] = minimap.m_selectedIconDeath;

@@ -60,6 +60,12 @@ namespace Auga
         public Sprite RecyclingPanelIcon;
         public GameObject BuildHud;
         public GameObject LeftWristMountUI;
+        // Art pass 2026-09-24 (port-tools/art_pass.py)
+        public Sprite ListRow;
+        public Sprite ListRowSelected;
+        public Sprite ToastPlate;
+        public Sprite RadialCenter;
+        public Sprite PortraitRing;
     }
 
     public class AugaColors
@@ -121,6 +127,7 @@ namespace Auga
         public static ConfigEntry<bool> AugaChatShow;
         public static ConfigEntry<bool> PortDiagnosticsEnabled;
         public static ConfigEntry<bool> SettingsSkinEnabled;
+        public static ConfigEntry<bool> PanelSkinsEnabled;
         public static ConfigEntry<bool> BuildMenuSkinEnabled;
 
         /// <summary>The loaded Auga bundle, kept so later code can pull fonts and art that are not in AugaAssets.</summary>
@@ -548,6 +555,7 @@ namespace Auga
             AugaChatShow = Config.Bind("AugaChat", "Show Auga Chat. Disable to use other mods. (Requires Restart)", true, "If false, disables the Auga Chat window display");
             BuildMenuSkinEnabled = Config.Bind("BuildMenu", "AugaBuildMenuSkin", true, "Re-skin the game's build menu in the Auga style. Off = vanilla look.");
             SettingsSkinEnabled = Config.Bind("Settings", "AugaSettingsSkin", true, "Re-skin the game's settings screen in the Auga style. Off = vanilla look.");
+            PanelSkinsEnabled = Config.Bind("Panels", "AugaPanelSkins", true, "Re-skin the remaining vanilla panels (popups, achievements, player list, world modifiers, radial menu, piece author) in the Auga style. Off = vanilla look.");
             PortDiagnosticsEnabled = Config.Bind("Debug", "PortDiagnostics", true, "Valheim 1.0 port aid: after each screen is set up, log the UI references on the vanilla components that are destroyed or unassigned.");
         }
 
@@ -595,6 +603,11 @@ namespace Auga
             Assets.RecyclingPanelIcon = assetBundle.LoadAsset<Sprite>("RecyclingPanel");
             Assets.LeftWristMountUI = assetBundle.LoadAsset<GameObject>("LeftWristMountUI");
             Assets.BuildHud = assetBundle.LoadAsset<GameObject>("BuildHud");
+            Assets.ListRow = assetBundle.LoadAsset<Sprite>("AugaListRow");
+            Assets.ListRowSelected = assetBundle.LoadAsset<Sprite>("AugaListRowSelected");
+            Assets.ToastPlate = assetBundle.LoadAsset<Sprite>("AugaToastPlate");
+            Assets.RadialCenter = assetBundle.LoadAsset<Sprite>("AugaRadialCenter");
+            Assets.PortraitRing = assetBundle.LoadAsset<Sprite>("AugaPortraitRing");
         }
 
         private static void ApplyCursor()

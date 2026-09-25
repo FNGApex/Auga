@@ -1,16 +1,16 @@
 ManifestFileVersion: 0
 UnityVersion: 6000.0.75f1
-CRC: 1500477645
+CRC: 3165337189
 Hashes:
   AssetFileHash:
     serializedVersion: 2
-    Hash: 7c5f58035b435174c353958902517e09
+    Hash: 3c94d06fb139fd013d24d855cfe5ecf7
   TypeTreeHash:
     serializedVersion: 2
     Hash: f7d564ca3b67469be1486f058873f1f2
   IncrementalBuildHash:
     serializedVersion: 2
-    Hash: fd85660f3357d6bcbcebf7a4d413d397
+    Hash: e358e913c4df4fa26cf341471d081444
 HashAppended: 0
 ClassTypes:
 - Class: 1
@@ -525,6 +525,7 @@ Assets:
 - Assets/Prefabs/TabContent_PlayerPanel.prefab
 - Assets/Prefabs/ZSFX/sfx_gui_repairitem_workbench.prefab
 - Assets/Prefabs/TabButton_Skills.prefab
+- Assets/Sprites/ArtPass/AugaRadialCenter.png
 - Assets/Prefabs/DiamondButton.prefab
 - Assets/Fonts/SourceSansPro-Bold SDF-old.asset
 - Assets/Prefabs/ZSFX/sfx_gui_craftitem_end.prefab
@@ -557,6 +558,7 @@ Assets:
 - Assets/Prefabs/AugaStoreScreen.prefab
 - Assets/Prefabs/ZSFX/sfx_gui_craftitem_workbench_end.prefab
 - Assets/Prefabs/ButtonSettings.prefab
+- Assets/Sprites/ArtPass/AugaToastPlate.png
 - Assets/Prefabs/MainMenu.prefab
 - Assets/Prefabs/ButtonDiamond.prefab
 - Assets/Prefabs/AugaChat.prefab
@@ -582,6 +584,7 @@ Assets:
 - Assets/Prefabs/ButtonSmall.prefab
 - Assets/Prefabs/Inventory_screen.prefab
 - Assets/Fonts/SourceHanSansCN-Bold SDF.asset
+- Assets/Sprites/ArtPass/AugaPortraitRing.png
 - Assets/Prefabs/HotKeyElement.prefab
 - Assets/Prefabs/TabButton_PVP.prefab
 - Assets/Prefabs/TabButton_Crafting.prefab
@@ -592,6 +595,7 @@ Assets:
 - Assets/Prefabs/ZSFX/sfx_gui_craftitem_workbench.prefab
 - Assets/Prefabs/ButtonFancy.prefab
 - Assets/Prefabs/ZSFX/sfx_gui_inventory_open.prefab
+- Assets/Sprites/ArtPass/AugaListRowSelected.png
 - Assets/Prefabs/ZSFX/sfx_gui_select.prefab
 - Assets/Prefabs/ZSFX/sfx_gui_craftitem_cauldron_end.prefab
 - Assets/Sprites/TabIcons/RecyclingPanel.png
@@ -608,6 +612,7 @@ Assets:
 - Assets/Prefabs/HUD.prefab
 - Assets/Prefabs/AugaUnlockMessageBase.prefab
 - Assets/Prefabs/TabContent_Crafting.prefab
+- Assets/Sprites/ArtPass/AugaListRow.png
 - Assets/Prefabs/ZSFX/sfx_gui_biomefound.prefab
 - Assets/Prefabs/ConfirmDialog.prefab
 - Assets/Prefabs/ZSFX/sfx_gui_craftitem_forge_end.prefab

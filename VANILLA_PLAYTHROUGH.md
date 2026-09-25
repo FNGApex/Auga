@@ -107,16 +107,16 @@ Haldor (s5-13); enemy HUD, stars, tamed bar (texts-enemies, issues); messages, r
 
 **2. New scenarios**
 10. `worldflow.chs`: new world with modifiers, manage saves, loading, logout / save and quit. M
-11. `sailing.chs`: Karve, ship HUD and wind, ship storage, cart. M
-12. `bosses.chs`: altar hover, Eikthyr boss bar, guardian power, raid event bar, stagger. M
-13. `stations2.chs`: every remaining station UI and processing hover, variant dialog. M
-14. `traders.chs`: Hildir, Bog Witch, pocket-upgrade purchase. S
-15. `biomes.chs`: bed/sleep/dream/rested, eitr and staffs, lava warning, saddled Lox mount HUD, damage text. M
-16. `extras.chs`: achievement popup, emotes and feast, boss cinematic, Hugin large dialog, trophies (#153). M
+11. `sailing.chs`: Karve, ship HUD and wind, ship storage, cart. M - **done 2026-09-24** on the ClaudeLab lab (`findshore`): Karve on deep water, rudder taken, Auga ship HUD + wind ring, Karve storage, cart hover. Verified by shot. Open: the ship barely moves (low wind at that spot), so speed is not measured.
+12. `bosses.chs`: altar hover, Eikthyr boss bar, guardian power, raid event bar, stagger. M - **done 2026-09-24** (boss bar, guardian power in Auga's diamond cluster, raid banner + red map circle; verified by shot). Not covered: altar hover (a location object) and stagger.
+13. `stations2.chs`: every remaining station UI and processing hover, variant dialog. M - **done 2026-09-24**: 6 crafting UIs (cauldron, stonecutter, artisan, black forge, galdr, prep table) + 8 processing hovers. Eitr refinery hover is read from the switch (the camera ray hits the casing). Variant dialog not covered.
+14. `traders.chs`: Hildir, Bog Witch, pocket-upgrade purchase. S - **done 2026-09-24**: hover, store, buy on both. The Bog Witch hover has no name in vanilla too (not an Auga bug). Pocket upgrade not covered.
+15. `biomes.chs`: bed/sleep/dream/rested, eitr and staffs, lava warning, saddled Lox mount HUD, damage text. M - **done 2026-09-24**: bed hover, Rested, eitr foods, staff, damage numbers. Not covered: sleep/dream, lava warning, Lox (the mount HUD was checked earlier).
+16. `extras.chs`: achievement popup, emotes and feast, boss cinematic, Hugin large dialog, trophies (#153). M - **done 2026-09-24**: achievement popup (ClaudeHeim `achievementpopup`, display only, never a Steam unlock; still vanilla art, see 19), emotes, a feast (hover + eat). Hugin's dialog is in auga-tour, trophies in fixes55. Boss cinematic not covered.
 17. Needs the user: first-spawn intro with a throwaway character (breaks the RETEP-only rule); multiplayer join /
     password / player list (needs a server). L
 
 **3. Cosmetic polish**
-18. Pause menu backdrop, readout box, hud-5 prefab fix at the next bundle rebuild, build-count colour. M
-19. Auga art for UnifiedPopup, SessionPlayerList, Achievements, piece author window, radial frame. M
+18. Pause menu backdrop, readout box, hud-5 prefab fix at the next bundle rebuild, build-count colour. M - backdrop, readout box and count colour done (round 2, 2026-09-22). Only the hud-5 prefab fix is left, and it waits for a bundle rebuild (the code stopgap works).
+19. Auga art for UnifiedPopup, SessionPlayerList, Achievements, piece author window, radial frame. M (+ the achievement unlock popup, world modifiers window)
 20. Key-label prettifying; gamepad pass only if gamepad is in scope. L
