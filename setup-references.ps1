@@ -103,7 +103,7 @@ New-Item -ItemType Junction -Path (Join-Path $gamePath 'BepInEx') -Target (Join-
 $vswhere = 'C:\Program Files (x86)\Microsoft Visual Studio\Installer\vswhere.exe'
 $msbuild = $null
 if (Test-Path $vswhere) {
-    $msbuild = & $vswhere -latest -requires Microsoft.Component.MSBuild -find 'MSBuild\**\Bin\MSBuild.exe' | Select-Object -First 1
+    $msbuild = & $vswhere -latest -products * -requires Microsoft.Component.MSBuild -find 'MSBuild\**\Bin\MSBuild.exe' | Select-Object -First 1
 }
 if (-not $msbuild) { throw 'MSBuild.exe (Visual Studio 2022) not found.' }
 Write-Host 'Building APIManager.dll...'
