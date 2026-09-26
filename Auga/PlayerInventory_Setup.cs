@@ -1,4 +1,4 @@
-using System.Globalization;
+﻿using System.Globalization;
 using AugaUnity;
 using HarmonyLib;
 using TMPro;
@@ -15,96 +15,188 @@ namespace Auga
         public static Transform TopRowInventory;
         public static Transform MainRowsInventory;
 
-        [HarmonyPatch(typeof(InventoryGui), nameof(InventoryGui.SetActiveGroup), typeof(int), typeof(bool))]
-        public static class InventoryGui_SetActiveGroup_Patch
+        /// <summary>Vertical gap between the bottom of the player panel and the top of the container panel, as authored in the prefab.</summary>
+        private static float ContainerGap;
+
+        /// <summary>
+        /// The player grid grows with the number of inventory rows instead of scrolling. Vanilla already resizes
+        /// InventoryGui.m_player in SetInventorySize (base height + (rows - 4) * row height), but it measured both
+        /// numbers on the vanilla panel in Awake, before Auga replaced it; the Auga panel is authored so that
+        /// "Main" holds exactly (rows - 1) grid rows when the panel is base height + (rows - 4) * row pitch.
+        /// </summary>
+        private static void SetupExpandingPlayerGrid(InventoryGui gui, Transform playerPanel)
         {
-            // Info (2) and crafting (3) both live in Auga's right panel; vanilla just switched it off for one of them.
-            public static void Postfix(InventoryGui __instance)
+            var grid = gui.m_playerGrid;
+            var main = grid.transform.Find("Main");
+            var rowPitch = grid.m_elementSpace;
+            var layout = main != null ? main.GetComponentInChildren<GridLayoutGroup>(true) : null;
+            if (layout != null)
             {
-                if (__instance.m_uiGroups != null && __instance.m_uiGroups.Length > 3 && __instance.m_uiGroups[2] != null)
-                {
-                    __instance.m_uiGroups[2].SetActive(__instance.m_activeGroup >= 2);
-                }
+                rowPitch = layout.cellSize.y + layout.spacing.y;
+            }
+
+            var scrollRect = main != null ? main.GetComponent<ScrollRect>() : null;
+            if (scrollRect != null)
+            {
+                scrollRect.vertical = false;
+                scrollRect.horizontal = false;
+                scrollRect.enabled = false;
+            }
+            var scrollbar = playerPanel.Find("PlayerScroll");
+            if (scrollbar != null)
+            {
+                scrollbar.gameObject.SetActive(false);
+            }
+            grid.m_scrollbar = null;
+            grid.m_ensureVisible = null;
+
+            gui.m_playerHeight = gui.m_player.sizeDelta.y;
+            gui.m_invGridHeight = rowPitch;
+            ContainerGap = BottomEdge(gui.m_player) - TopEdge(gui.m_container);
+            UpdateContainerPosition(gui);
+        }
+
+        /// <summary>Keeps the container panel directly below the (possibly resized) player panel.</summary>
+        public static void UpdateContainerPosition(InventoryGui gui)
+        {
+            var player = gui.m_player;
+            var container = gui.m_container;
+            if (player == null || container == null || player.parent != container.parent)
+            {
+                return;
+            }
+
+            var position = container.anchoredPosition;
+            position.y += BottomEdge(player) - ContainerGap - TopEdge(container);
+            container.anchoredPosition = position;
+        }
+
+        // Both panels are anchored to the same parent edge (top-left) with a fixed height, so their top and bottom
+        // edges can be expressed in the parent's anchored space.
+        private static float TopEdge(RectTransform rect) => rect.anchoredPosition.y + (1f - rect.pivot.y) * rect.sizeDelta.y;
+        private static float BottomEdge(RectTransform rect) => TopEdge(rect) - rect.sizeDelta.y;
+
+        /// <summary>
+        /// InventoryGrid now expects every slot prefab to carry an InventoryElement component that references
+        /// its icon/amount/quality/... children (the grid used to look them up by name). The Auga slot prefab
+        /// predates that component, so build it on the (in-memory) prefab once; every slot instantiated from it
+        /// then has it. Child names follow the vanilla slot the Auga prefab was modelled on.
+        /// </summary>
+        public static void EnsureInventoryElement(GameObject elementPrefab)
+        {
+            if (elementPrefab == null || elementPrefab.GetComponent<InventoryElement>() != null)
+            {
+                return;
+            }
+
+            var t = elementPrefab.transform;
+            var element = elementPrefab.AddComponent<InventoryElement>();
+
+            // The grid subscribes to click and drag handlers on every slot without null checks; drag-and-drop
+            // (UIDragHandler) is newer than the Auga slot prefab.
+            if (elementPrefab.GetComponentInChildren<UIInputHandler>(true) == null)
+            {
+                elementPrefab.AddComponent<UIInputHandler>();
+            }
+            if (elementPrefab.GetComponentInChildren<UIDragHandler>(true) == null)
+            {
+                elementPrefab.AddComponent<UIDragHandler>();
+            }
+            element.m_button = elementPrefab.GetComponent<Button>() ?? elementPrefab.GetComponentInChildren<Button>(true);
+            element.m_touchRect = t as RectTransform;
+            element.m_icon = t.Find("icon")?.GetComponent<Image>();
+            element.m_amount = t.Find("amount")?.GetComponent<TMP_Text>();
+            element.m_quality = t.Find("quality")?.GetComponent<TMP_Text>();
+            element.m_equiped = t.Find("equiped")?.GetComponent<Image>();
+            element.m_queued = t.Find("queued")?.GetComponent<Image>();
+            element.m_selected = t.Find("selected")?.gameObject;
+            element.m_noteleport = t.Find("noteleport")?.GetComponent<Image>();
+            element.m_food = t.Find("foodicon")?.GetComponent<Image>();
+            var durability = t.Find("durability");
+            element.m_durability = durability?.GetComponent<GuiBar>();
+            if (durability != null && element.m_durability == null)
+            {
+                // Auga drives the bar with its own BetterDurabilityBar; the grid still expects a GuiBar to toggle/scale.
+                var bar = durability.gameObject.AddComponent<GuiBar>();
+                bar.m_bar = (durability.Find("bar") ?? durability.Find("realbar") ?? durability) as RectTransform;
+                element.m_durability = bar;
+            }
+            element.m_tooltip = elementPrefab.GetComponent<UITooltip>() ?? elementPrefab.AddComponent<UITooltip>();
+            element.m_touchHighlightColor = Color.white;
+            element.m_dropFocus = t.Find("dropFocus")?.GetComponent<Image>() ?? CreateStretchedImage(t, "dropFocus", new Color(1f, 1f, 1f, 0.25f));
+
+            // Hotkey number shown on the top row; the grid looks it up by name.
+            if (t.Find("binding") == null)
+            {
+                var binding = new GameObject("binding", typeof(RectTransform), typeof(CanvasRenderer), typeof(TextMeshProUGUI));
+                binding.transform.SetParent(t, false);
+                var rect = (RectTransform)binding.transform;
+                rect.anchorMin = new Vector2(0, 1);
+                rect.anchorMax = new Vector2(0, 1);
+                rect.pivot = new Vector2(0, 1);
+                rect.anchoredPosition = new Vector2(4, -2);
+                rect.sizeDelta = new Vector2(20, 20);
+                var text = binding.GetComponent<TextMeshProUGUI>();
+                text.fontSize = 14;
+                text.raycastTarget = false;
+                text.enabled = false;
+            }
+
+            if (element.m_button == null)
+            {
+                // InventoryElement.Initialize reads the button's colour block; give it an inert one.
+                var button = elementPrefab.AddComponent<Button>();
+                button.transition = Selectable.Transition.None;
+                button.navigation = new Navigation { mode = Navigation.Mode.None };
+                element.m_button = button;
             }
         }
 
         /// <summary>
-        /// Upstream issues #62 / #228 (reproduced on 1.0 with a 6-row inventory): vanilla keeps the chest panel inside the
-        /// player panel, so it follows the panel when 1.0's SetInventorySize grows it for extra rows. Auga lifts the chest
-        /// out as a sibling (see the Awake postfix), so it stayed put and covered the new rows. Keep the original gap.
+        /// Fields the grid dereferences without null checks that the Auga grid prefab may leave unset.
         /// </summary>
-        [HarmonyPatch(typeof(InventoryGui), nameof(InventoryGui.SetInventorySize))]
-        public static class InventoryGui_SetInventorySize_Patch
+        private static void EnsureGridReferences(InventoryGrid grid, Transform panel)
         {
-            private static float _containerBaseY = float.NaN;
-            private static float _playerBaseHeight;
-
-            public static void Postfix(InventoryGui __instance)
+            if (grid == null)
             {
-                var container = __instance.m_container;
-                var player = __instance.m_player;
-                if (container == null || player == null || container.parent != player.parent)
-                {
-                    return;
-                }
-
-                if (float.IsNaN(_containerBaseY))
-                {
-                    _containerBaseY = container.anchoredPosition.y;
-                    _playerBaseHeight = __instance.m_playerHeight;
-                }
-
-                var extra = player.sizeDelta.y - _playerBaseHeight;
-                container.anchoredPosition = new Vector2(container.anchoredPosition.x, _containerBaseY - extra);
+                return;
             }
+
+            if (grid.m_uiGroup == null)
+            {
+                grid.m_uiGroup = panel != null ? panel.GetComponent<UIGroupHandler>() : null;
+            }
+            if (grid.m_tooltipAnchor == null)
+            {
+                grid.m_tooltipAnchor = grid.transform as RectTransform;
+            }
+            if (grid.m_gridRoot == null)
+            {
+                grid.m_gridRoot = (grid.transform.Find("Root") ?? grid.transform) as RectTransform;
+            }
+
+            Auga.Log($"InventoryGrid '{grid.name}': uiGroup={(grid.m_uiGroup != null)} gridRoot={(grid.m_gridRoot != null)} elementPrefab={(grid.m_elementPrefab != null)} ensureVisible={(grid.m_ensureVisible != null)} scrollbar={(grid.m_scrollbar != null)}");
+        }
+
+        private static Image CreateStretchedImage(Transform parent, string name, Color color)
+        {
+            var go = new GameObject(name, typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+            go.transform.SetParent(parent, false);
+            go.transform.SetAsFirstSibling();
+            var rect = (RectTransform)go.transform;
+            rect.anchorMin = Vector2.zero;
+            rect.anchorMax = Vector2.one;
+            rect.offsetMin = Vector2.zero;
+            rect.offsetMax = Vector2.zero;
+            var image = go.GetComponent<Image>();
+            image.color = color;
+            image.raycastTarget = false;
+            return image;
         }
 
         [HarmonyPatch(typeof(InventoryGui), nameof(InventoryGui.Awake))]
         public static class InventoryGui_Awake_Patch
         {
-            /// <summary>
-            /// Valheim 1.0 port (pause-texts-10): 1.0's Achievements panel (root/Achievements) is only reachable from the
-            /// Achievements button on vanilla's root/Info strip, which Auga hides. Add an icon button at the end of Auga's
-            /// player-panel tab row (a plain button like the PvP one, not a tab) with the vanilla icon and tooltip.
-            /// </summary>
-            private static void AddAchievementsButton(InventoryGui gui, Transform rightPanel)
-            {
-                var tabs = rightPanel.Find("DefaultContent/TabButtonContainer/Tabs");
-                var template = tabs != null ? tabs.Find("TabButton_MessageLog") : null;
-                var vanilla = gui.transform.Find("root/Info_VanillaDonor/Achievements") ?? gui.transform.Find("root/Info/Achievements");
-                if (template == null || gui.m_achievementsPanel == null)
-                {
-                    return;
-                }
-
-                var button = Object.Instantiate(template, tabs, false);
-                button.name = "TabButton_Achievements";
-                button.SetAsLastSibling();
-
-                var vanillaIcon = vanilla != null ? vanilla.Find("Image")?.GetComponent<Image>() : null;
-                var icon = button.Find("Icon")?.GetComponent<Image>();
-                if (icon != null && vanillaIcon != null && vanillaIcon.sprite != null)
-                {
-                    icon.sprite = vanillaIcon.sprite;
-                    icon.preserveAspect = true;
-                }
-
-                var tooltip = button.GetComponent<UITooltip>();
-                var vanillaTooltip = vanilla != null ? vanilla.GetComponent<UITooltip>() : null;
-                if (tooltip != null)
-                {
-                    tooltip.m_text = vanillaTooltip != null && !string.IsNullOrEmpty(vanillaTooltip.m_text) ? vanillaTooltip.m_text : "$inventory_achievements";
-                    if (vanillaTooltip != null && !string.IsNullOrEmpty(vanillaTooltip.m_topic))
-                    {
-                        tooltip.m_topic = vanillaTooltip.m_topic;
-                    }
-                }
-
-                var click = button.GetComponent<Button>();
-                click.onClick = new Button.ButtonClickedEvent();
-                click.onClick.AddListener(gui.OnOpenAchievements);
-            }
-
             [HarmonyPriority(Priority.First)]
             public static void Postfix(InventoryGui __instance)
             {
@@ -115,34 +207,25 @@ namespace Auga
                 __instance.m_containerGrid.m_onSelected = null;
                 __instance.m_containerGrid.m_onRightClick = null;
 
-                // Valheim 1.0 port: the chest panel now lives inside the player panel (root/Player/Container).
-                // Auga lays the two out as siblings, so lift it back up before root/Player is replaced.
-                var nestedContainer = __instance.transform.Find("root/Player/Container");
-                if (nestedContainer != null && __instance.transform.Find("root/Container") == null)
+                // The vanilla container panel now lives inside root/Player; Auga replaces Player and Container as
+                // siblings under root, so move the vanilla container out first (it is replaced below anyway). It
+                // goes right after Player: SetParent appends it as the last child, behind the split dialog, and
+                // Replace keeps the sibling index it finds, so the split stack dialog opened underneath the container.
+                var vanillaPlayer = __instance.transform.Find("root/Player");
+                var vanillaContainer = __instance.transform.Find("root/Player/Container");
+                if (vanillaContainer != null)
                 {
-                    nestedContainer.SetParent(__instance.transform.Find("root"), false);
-                    // Right after the player panel, not last: appended at the end it drew over (and took clicks from) the split,
-                    // trophies and texts dialogs, which in vanilla come after the panel that contains the chest.
-                    nestedContainer.SetSiblingIndex(__instance.transform.Find("root/Player").GetSiblingIndex() + 1);
+                    vanillaContainer.SetParent(__instance.transform.Find("root"), false);
+                    vanillaContainer.SetSiblingIndex(vanillaPlayer.GetSiblingIndex() + 1);
                 }
 
                 var playerInventory = __instance.Replace("root/Player", Auga.Assets.InventoryScreen, "root/Player");
                 __instance.m_player = playerInventory.RectTransform();
-                // Valheim 1.0 port: Awake cached the *vanilla* panel height (287) and row pitch for the new SetInventorySize
-                // (extra inventory rows); applied to Auga's 332 high panel that cut the grid down to ~2.5 visible rows.
-                __instance.m_playerHeight = __instance.m_player.sizeDelta.y;
-                var mainGridLayout = playerInventory.Find("PlayerGrid/Main/Grid")?.GetComponent<GridLayoutGroup>();
-                __instance.m_invGridHeight = mainGridLayout != null ? mainGridLayout.cellSize.y + mainGridLayout.spacing.y : 80f;
+                // Touch-only anchor for the split dialog; the vanilla one was inside the replaced Player panel.
+                __instance.m_touchSplitAnchor = playerInventory;
                 __instance.m_playerGrid = playerInventory.Find("PlayerGrid").GetComponent<InventoryGrid>();
                 __instance.m_playerGrid.m_onSelected += __instance.OnSelectedItem;
                 __instance.m_playerGrid.m_onRightClick += __instance.OnRightClickItem;
-                // Valheim 1.0 port: the rest of what InventoryGui.Awake wires per grid. CanDropDragOntoItem is
-                // invoked without a null check inside InventoryGrid.UpdateGui.
-                __instance.m_playerGrid.m_onReleased += __instance.OnReleasedItem;
-                __instance.m_playerGrid.m_onEnter += __instance.OnEnterElement;
-                __instance.m_playerGrid.OnSetTouchSelection += __instance.SetTouchSelection;
-                __instance.m_playerGrid.CanDropDragOntoItem += __instance.CanDropDragOntoItem;
-                __instance.m_playerGrid.OnMoveToLowerInventoryGrid += __instance.MoveToLowerInventoryGrid;
                 __instance.m_weight = playerInventory.Find("Weight/Text").GetComponent<TMP_Text>();
                 __instance.m_armor = playerInventory.Find("Armor/Text").GetComponent<TMP_Text>();
 
@@ -152,21 +235,35 @@ namespace Auga
                 __instance.m_containerGrid = containerInventory.Find("ContainerGrid").GetComponent<InventoryGrid>();
                 __instance.m_containerGrid.m_onSelected += __instance.OnSelectedItem;
                 __instance.m_containerGrid.m_onRightClick += __instance.OnRightClickItem;
+
+                // InventoryGui.Awake wired these on the vanilla grids before they were replaced; the game invokes
+                // CanDropDragOntoItem without a null check on every item, so all of them must be restored.
+                __instance.m_playerGrid.m_onReleased += __instance.OnReleasedItem;
+                __instance.m_playerGrid.m_onEnter += __instance.OnEnterElement;
+                __instance.m_playerGrid.OnMoveToLowerInventoryGrid += __instance.MoveToLowerInventoryGrid;
+                __instance.m_playerGrid.OnSetTouchSelection += __instance.SetTouchSelection;
+                __instance.m_playerGrid.CanDropDragOntoItem = __instance.CanDropDragOntoItem;
                 __instance.m_containerGrid.m_onReleased += __instance.OnReleasedItem;
                 __instance.m_containerGrid.m_onEnter += __instance.OnEnterElement;
-                __instance.m_containerGrid.OnSetTouchSelection += __instance.SetTouchSelection;
-                __instance.m_containerGrid.CanDropDragOntoItem += __instance.CanDropDragOntoItem;
                 __instance.m_containerGrid.OnMoveToUpperInventoryGrid += __instance.MoveToUpperInventoryGrid;
+                __instance.m_containerGrid.OnSetTouchSelection += __instance.SetTouchSelection;
+                __instance.m_containerGrid.CanDropDragOntoItem = __instance.CanDropDragOntoItem;
+
+                EnsureInventoryElement(__instance.m_playerGrid.m_elementPrefab);
+                EnsureInventoryElement(__instance.m_containerGrid.m_elementPrefab);
+                EnsureGridReferences(__instance.m_playerGrid, playerInventory);
+                EnsureGridReferences(__instance.m_containerGrid, containerInventory);
+                SetupExpandingPlayerGrid(__instance, playerInventory);
                 __instance.m_containerWeight = containerInventory.Find("Weight/Text").GetComponent<TMP_Text>();
                 __instance.m_takeAllButton = containerInventory.Find("TakeAll").GetComponent<ColorButtonText>();
                 __instance.m_takeAllButton.onClick.AddListener(__instance.OnTakeAll);
                 __instance.m_stackAllButton = containerInventory.Find("StackAll").GetComponent<ColorButtonText>();
                 __instance.m_stackAllButton.onClick.AddListener(__instance.OnStackAll);
-
+                
                 var oldCraftingPanel = __instance.transform.Find("root/Crafting");
                 var craftingPanelSiblingIndex = oldCraftingPanel.GetSiblingIndex();
-                // Valheim 1.0 port: kept hidden instead of destroyed - 1.0 has fields pointing into this panel that Auga doesn't replace.
-                PortCarryOver.MakeDonor(oldCraftingPanel.gameObject);
+                oldCraftingPanel.gameObject.SetActive(false);
+                Object.Destroy(oldCraftingPanel.gameObject);
 
                 var variantDialog = __instance.Replace("root/VariantDialog", Auga.Assets.InventoryScreen, "root/DummyObjects/DummyVariantDialog");
                 __instance.m_variantDialog = variantDialog.GetComponent<VariantDialog>();
@@ -220,52 +317,37 @@ namespace Auga
                 __instance.m_minStationLevelIcon = CraftingPanel.DummyMinStationLevelIcon;
                 CraftingPanel.Initialize(__instance);
 
-                // Valheim 1.0 port: hidden, not destroyed (the new Achievements button lives here).
-                PortCarryOver.MakeDonor(__instance.transform.Find("root/Info").gameObject);
-                AddAchievementsButton(__instance, rightPanel);
+                Object.Destroy(__instance.transform.Find("root/Info").gameObject);
                 /*var info = Object.Instantiate(Auga.Assets.InventoryScreen.transform.Find("root/Info"), containerInventory.parent, false);
                 info.SetSiblingIndex(3);
                 info.gameObject.name = "Info";
                 info.Find("Texts").GetComponent<Button>().onClick.AddListener(__instance.OnOpenTexts);
                 info.Find("Trophies").GetComponent<Button>().onClick.AddListener(__instance.OnOpenTrophies);*/
 
-                // AUDIT2 inventory-11: Auga's own split panel gets 1.0's SplitDialog component at runtime (PortSplitDialog);
-                // vanilla's wood panel becomes a hidden donor.
-                var vanillaSplit = __instance.transform.Find("root/SplitDialog");
-                var augaSplitTemplate = Auga.Assets.InventoryScreen.transform.Find("root/SplitDialog");
-                if (vanillaSplit != null && augaSplitTemplate != null)
-                {
-                    var augaSplit = Object.Instantiate(augaSplitTemplate, vanillaSplit.parent, false);
-                    augaSplit.name = "SplitDialog";
-                    augaSplit.SetSiblingIndex(vanillaSplit.GetSiblingIndex());
-                    var splitDialog = PortSplitDialog.Setup(augaSplit);
-                    if (splitDialog != null)
-                    {
-                        PortCarryOver.MakeDonor(vanillaSplit.gameObject);
-                        __instance.m_splitDialog = splitDialog;
-                    }
-                    else
-                    {
-                        Object.Destroy(augaSplit.gameObject);
-                    }
-                }
+                // The split dialog is now its own SplitDialog component (it wires the slider/button listeners
+                // itself in OnEnable and raises SplitAccepted/SplitCanceled events for InventoryGui).
+                var splitDialog = __instance.Replace("root/SplitDialog", Auga.Assets.InventoryScreen, "root/SplitDialog");
+                splitDialog.gameObject.SetActive(false);
+                var splitDialogComponent = splitDialog.GetComponent<SplitDialog>() ?? splitDialog.gameObject.AddComponent<SplitDialog>();
+                var splitPanel = splitDialog.Find("Dialog").RectTransform();
+                splitDialogComponent.m_panel = splitPanel;
+                splitDialogComponent.m_panelNormalPosition = splitPanel;
+                splitDialogComponent.m_panelTouchPosition = splitPanel;
+                splitDialogComponent.m_splitSlider = splitDialog.Find("Dialog/Slider").GetComponent<Slider>();
+                splitDialogComponent.m_splitAmount = splitDialog.Find("Dialog/InventoryElement/amount").GetComponent<TMP_Text>();
+                splitDialogComponent.m_splitCancelButton = splitDialog.Find("Dialog/ButtonCancel").GetComponent<Button>();
+                splitDialogComponent.m_splitOkButton = splitDialog.Find("Dialog/ButtonOk").GetComponent<Button>();
+                splitDialogComponent.m_splitIcon = splitDialog.Find("Dialog/InventoryElement/icon").GetComponent<Image>();
+                splitDialogComponent.m_splitIconName = splitDialog.Find("Dialog/InventoryElement/DummyText").GetComponent<TMP_Text>();
+                __instance.m_splitDialog = splitDialogComponent;
 
-                // Valheim 1.0 port: vanilla addresses the groups by index - [2] info (skills, texts, trophies),
-                // [3] crafting - and finds a group's index with Array.IndexOf, so the two slots need distinct
-                // handlers. Auga shows both inside its one right panel: slot 3 gets an empty stand-in, and
-                // InventoryGui_SetActiveGroup_Patch keeps the real panel active for either index.
-                var craftingGroupStandIn = new GameObject("CraftingGroup_PortStandIn", typeof(RectTransform));
-                craftingGroupStandIn.transform.SetParent(rightPanel, false);
+                // The game addresses these by index: [2] when opening texts/trophies/skills, [3] for crafting.
                 __instance.m_uiGroups = new [] {
                     containerInventory.GetComponent<UIGroupHandler>(),
                     playerInventory.GetComponent<UIGroupHandler>(),
                     rightPanel.GetComponent<UIGroupHandler>(),
-                    craftingGroupStandIn.AddComponent<UIGroupHandler>()
+                    rightPanel.GetComponent<UIGroupHandler>()
                 };
-
-                // inventory-6: new in 1.0, pointed into the replaced player panel.
-                var touchSplitAnchor = playerInventory.Find("TouchSplitAnchor");
-                __instance.m_touchSplitAnchor = touchSplitAnchor != null ? touchSplitAnchor : playerInventory;
 
                 var animator = __instance.GetComponent<Animator>();
                 var newAnimator = Auga.Assets.InventoryScreen.GetComponent<Animator>();
@@ -299,9 +381,9 @@ namespace Auga
                 foreach (var element in __instance.m_elements)
                 {
                     var itemTooltip = element.gameObject.GetComponent<ItemTooltip>();
-
+                    
                     var item = __instance.m_inventory.GetItemAt(element.Position.x, element.Position.y);
-
+                    
                     if (itemTooltip != null && !element.m_used)
                     {
                         itemTooltip.Item = null;
@@ -326,6 +408,15 @@ namespace Auga
                         }
                     }
                 }
+            }
+        }
+
+        [HarmonyPatch(typeof(InventoryGui), nameof(InventoryGui.SetInventorySize))]
+        public static class InventoryGui_SetInventorySize_Patch
+        {
+            public static void Postfix(InventoryGui __instance)
+            {
+                UpdateContainerPosition(__instance);
             }
         }
 
@@ -396,12 +487,11 @@ namespace Auga
         [HarmonyPatch(typeof(InventoryGui), nameof(InventoryGui.SetupRequirementList))]
         public static class InventoryGui_SetupRequirementList_Patch
         {
-            // Valheim 1.0 port: "amount" is the new multi-craft multiplier; m_reqList is what vanilla decided to show.
             public static void Postfix(InventoryGui __instance, int quality, Player player, bool allowedQuality, int amount)
             {
                 if (CraftingPanel != null)
                 {
-                    CraftingPanel.PostSetupRequirementList(__instance.m_selectedRecipe.Recipe, __instance.m_selectedRecipe.ItemData, quality, player, allowedQuality, amount, __instance.m_reqList);
+                    CraftingPanel.PostSetupRequirementList(__instance.m_selectedRecipe.Recipe, __instance.m_selectedRecipe.ItemData, quality, player, allowedQuality, amount);
                 }
             }
         }
@@ -434,6 +524,44 @@ namespace Auga
                     }
                 }
             }
+        }
+    }
+
+    /// <summary>
+    /// Auga's tab buttons play their own click sound, and the vanilla tab handlers they forward to switch the
+    /// inventory UI group, which plays the group-switch effect as well: every crafting tab change sounded twice.
+    /// The group switch stays silent while those handlers run; gamepad group cycling keeps its sound.
+    /// </summary>
+    [HarmonyPatch]
+    public static class InventoryGui_TabHandlers_Silent_Patch
+    {
+        internal static int SilentDepth;
+
+        public static System.Collections.Generic.IEnumerable<System.Reflection.MethodBase> TargetMethods()
+        {
+            yield return AccessTools.Method(typeof(InventoryGui), nameof(InventoryGui.OnTabCraftPressed));
+            yield return AccessTools.Method(typeof(InventoryGui), nameof(InventoryGui.OnTabUpgradePressed));
+        }
+
+        public static void Prefix()
+        {
+            SilentDepth++;
+        }
+
+        public static System.Exception Finalizer(System.Exception __exception)
+        {
+            SilentDepth = Mathf.Max(0, SilentDepth - 1);
+            return __exception;
+        }
+    }
+
+    [HarmonyPatch(typeof(InventoryGui), "SetActiveGroup", typeof(int), typeof(bool))]
+    public static class InventoryGui_SetActiveGroup_Silent_Patch
+    {
+        public static void Prefix(ref bool playSound)
+        {
+            if (InventoryGui_TabHandlers_Silent_Patch.SilentDepth > 0)
+                playSound = false;
         }
     }
 }

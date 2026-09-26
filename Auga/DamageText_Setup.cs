@@ -1,4 +1,4 @@
-using System.Linq;
+﻿using System.Linq;
 using HarmonyLib;
 using UnityEngine;
 
@@ -10,12 +10,13 @@ namespace Auga
         [HarmonyPatch(typeof(DamageText), nameof(DamageText.Awake))]
         public static class DamageText_Awake_Patch
         {
-            public static bool Prefix(TextInput __instance)
+            public static bool Prefix(DamageText __instance)
             {
                 return !SetupHelper.DirectObjectReplace(__instance.transform, Auga.Assets.DamageText, "DamageText");
             }
         }
 
+        // The game now passes the already formatted damage string ("0", "12.5", "$msg_..."), not a float.
         [HarmonyPatch(typeof(DamageText), nameof(DamageText.AddInworldText))]
         [HarmonyPostfix]
         public static void AddInworldText_Postfix(DamageText __instance, DamageText.TextType type, string text, bool mySelf)
@@ -33,7 +34,6 @@ namespace Auga
             }
             else if (mySelf && type <= DamageText.TextType.Immune)
             {
-                // Valheim 1.0: the amount arrives as text; vanilla tests it against "0" the same way.
                 color = text != "0" ? Auga.Colors.PlayerDamage : Auga.Colors.PlayerNoDamage;
             }
             else
@@ -56,8 +56,7 @@ namespace Auga
                         color = Auga.Colors.TooHard;
                         break;
                     default:
-                        // Valheim 1.0 types Auga has no colour for (Bonus, Blocked...): keep what vanilla just set.
-                        color = worldTextInstance.m_textField.color;
+                        color = Color.white;
                         break;
                 }
             }

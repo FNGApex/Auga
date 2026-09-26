@@ -1,13 +1,15 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection.Emit;
+using Auga.Utilities;
 using AugaUnity;
 using HarmonyLib;
 using JetBrains.Annotations;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
+using Valheim.UI;
 using Object = UnityEngine.Object;
 
 namespace Auga
@@ -26,13 +28,13 @@ namespace Auga
 
                 if (instance.m_leftScrollbar == null)
                     return;
-
+                
                 if (instance.m_leftScrollRect == null)
                     return;
-
+                
                 instance.m_leftScrollbar.size = ((RectTransform)instance.m_leftScrollRect.transform).rect.height / instance.m_listRoot.rect.height;    
             }
-
+            
             [UsedImplicitly]
             public static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions)
             {
@@ -71,7 +73,7 @@ namespace Auga
             {
                 if (text == null)
                     return;
-
+                
                 instance.m_textAreaTopic.text = Localization.instance.Localize(text.m_topic);
                 instance.m_textArea.text = Localization.instance.Localize(text.m_text);
                 foreach (TextsDialog.TextInfo text1 in instance.m_texts)
@@ -82,7 +84,7 @@ namespace Auga
                     instance.StartCoroutine(instance.FocusOnCurrentLevel(instance.m_leftScrollRect, instance.m_listRoot, text.m_selected.transform as RectTransform));                    
                 }
             }
-
+            
             [UsedImplicitly]
             public static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions)
             {
@@ -129,7 +131,7 @@ namespace Auga
                     Button component3;
                     Button component4;
                     Button component5;
-
+                    
                     List<Button> buttonList = new List<Button>();
 
                     if (instance.name.StartsWith("Auga"))
@@ -141,29 +143,16 @@ namespace Auga
                         component5 = instance.m_menuDialog.Find("MenuEntries/Compendium").GetComponent<Button>();
 
                         instance.m_firstMenuButton = component3;
-
-                        // AUDIT2 menus-3: Skip Intro (during the intro) and Player list (on a server) are real entries too.
-                        if (instance.m_skipButton != null && instance.m_skipButton.gameObject.activeSelf)
-                            buttonList.Add(instance.m_skipButton);
-
+                        
                         //Settings
                         buttonList.Add(component4);
-
+                        
                         //Compendium
                         buttonList.Add(component5);
 
                         //Save
                         if (instance.m_saveButton.interactable)
                             buttonList.Add(instance.m_saveButton);
-
-                        //Player list
-                        if (instance.m_playerListButton != null && instance.m_playerListButton.gameObject.activeSelf)
-                            buttonList.Add(instance.m_playerListButton);
-
-                        // Valheim 1.0 port (pause-texts-7): Invite Friends, when SetButtonsEnabled shows it.
-                        if (instance.m_inviteButton != null && instance.m_inviteButton.gameObject.activeSelf
-                            && instance.m_inviteButton.transform.IsChildOf(instance.transform))
-                            buttonList.Add(instance.m_inviteButton);
 
                         //Logout
                         buttonList.Add(component1);
@@ -183,31 +172,29 @@ namespace Auga
                         component4 = instance.m_menuDialog.Find("MenuEntries/Settings").GetComponent<Button>();
 
                         instance.m_firstMenuButton = component3;
-
+                        
                         buttonList.Add(component3);
-
+                        
                         if (instance.m_saveButton.interactable)
                             buttonList.Add(instance.m_saveButton);
 
                         if (instance.m_playerListButton.gameObject.activeSelf)
                             buttonList.Add(instance.m_playerListButton);
-
+                        
                         buttonList.Add(component4);
 
                         buttonList.Add(component1);
-
+                        
                         if (component2.gameObject.activeSelf)
                             buttonList.Add(component2);
                     }
-
+                    
                     for (int index = 0; index < buttonList.Count; ++index)
                     {
                         Navigation navigation = buttonList[index].navigation with
                         {
                             selectOnUp = index <= 0 ? buttonList[buttonList.Count - 1] : (Selectable) buttonList[index - 1],
-                            selectOnDown = index >= buttonList.Count - 1 ? buttonList[0] : (Selectable) buttonList[index + 1],
-                            // Unity only honours selectOnUp/Down in Explicit mode (vanilla 1.0 sets it too).
-                            mode = Navigation.Mode.Explicit
+                            selectOnDown = index >= buttonList.Count - 1 ? buttonList[0] : (Selectable) buttonList[index + 1]
                         };
                         buttonList[index].navigation = navigation;
                     }
@@ -218,7 +205,7 @@ namespace Auga
                     Debug.LogWarning($"{e.StackTrace}");
                 }
             }
-
+            
             [UsedImplicitly]
             public static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions)
             {
@@ -263,202 +250,135 @@ namespace Auga
 
                 var parent = __instance.transform.parent;
                 var playerPrefab = __instance.CurrentPlayersPrefab;
-                // Valheim 1.0 port: keep the vanilla menu as a hidden donor for the buttons 1.0 added (see PortCarryOver).
-                // The vanilla Start just subscribed to the save events; only the Auga menu may react to them.
-                PlayerProfile.SavingFinished -= __instance.SaveFinished;
-                ZNet.WorldSaveFinished -= __instance.SaveFinished;
-                var donor = PortCarryOver.MakeDonor(__instance.gameObject);
-                var newMenu = PortCarryOver.InstantiateFilled(Auga.Assets.MenuPrefab, parent, donor).GetComponent<Menu>();
-                newMenu.CurrentPlayersPrefab = playerPrefab;
-                // m_skipButton was a GameObject in 2023 and is a Button now, so the bundle's value does not load.
-                var skipIntro = newMenu.transform.Find("MenuRoot/Menu/MenuEntries/SkipIntro");
-                if (skipIntro != null && skipIntro.GetComponent<Button>() != null)
-                {
-                    var skipButton = skipIntro.GetComponent<Button>();
-                    newMenu.m_skipButton = skipButton;
-                    // The prefab wires this entry to OnManualSave; switch the baked call off and skip the intro instead.
-                    for (var i = 0; i < skipButton.onClick.GetPersistentEventCount(); i++)
-                    {
-                        skipButton.onClick.SetPersistentListenerState(i, UnityEngine.Events.UnityEventCallState.Off);
-                    }
-
-                    skipButton.onClick.AddListener(newMenu.OnSkip);
-                }
-                else if (newMenu.m_skipButton == null)
-                {
-                    newMenu.m_skipButton = __instance.m_skipButton;
-                }
-
-                // AUDIT2 menus-2: m_continueButton / m_settingsButton / m_logoutButton / m_quitButton are new in 1.0 and were
-                // filled from the hidden donor, so SetButtonsEnabled (DemoMode, console) never reached Auga's entries.
-                var menuEntries = newMenu.transform.Find("MenuRoot/Menu/MenuEntries");
-                if (menuEntries != null)
-                {
-                    Button Entry(string path) => menuEntries.Find(path)?.GetComponent<Button>();
-                    newMenu.m_continueButton = Entry("DividerMedium/CloseButton") ?? newMenu.m_continueButton;
-                    newMenu.m_settingsButton = Entry("Settings") ?? newMenu.m_settingsButton;
-                    newMenu.m_logoutButton = Entry("Logout") ?? newMenu.m_logoutButton;
-                    newMenu.m_quitButton = Entry("Exit") ?? newMenu.m_quitButton;
-
-                    SetupInviteButton(newMenu, menuEntries);
-                }
-
-                SetupBackdrop(newMenu);
-
-                // The cloud-storage warnings only exist in vanilla; move them out of the hidden donor so they can show.
-                foreach (var warning in new[] { newMenu.m_cloudStorageWarning, newMenu.m_cloudStorageWarningNextSave })
-                {
-                    if (warning != null && warning.transform.IsChildOf(donor.transform))
-                    {
-                        warning.transform.SetParent(newMenu.transform, false);
-                        // Their OK buttons are baked to call the *donor's* Menu, whose callback list is empty - the quit /
-                        // log out / save they gate was silently dropped. Point them at the live menu.
-                        var isNextSave = warning == newMenu.m_cloudStorageWarningNextSave;
-                        foreach (var ok in warning.GetComponentsInChildren<Button>(true))
-                        {
-                            var rebound = false;
-                            for (var i = 0; i < ok.onClick.GetPersistentEventCount(); i++)
-                            {
-                                if (ok.onClick.GetPersistentTarget(i) == __instance)
-                                {
-                                    ok.onClick.SetPersistentListenerState(i, UnityEngine.Events.UnityEventCallState.Off);
-                                    rebound = true;
-                                }
-                            }
-
-                            if (rebound)
-                            {
-                                if (isNextSave)
-                                {
-                                    ok.onClick.AddListener(newMenu.OnCloudStorageLowNextSaveWarningOk);
-                                }
-                                else
-                                {
-                                    ok.onClick.AddListener(newMenu.OnCloudStorageFullWarningOk);
-                                }
-                            }
-                        }
-                    }
-                }
-
-                // New in 1.0 and a plain struct, so the reference carry-over does not see it.
-                newMenu.m_startScene = __instance.m_startScene;
-
-                // Auga's Menu still names AugaSettings, which is built for the pre-1.0 Settings class. Vanilla settings stay.
-                newMenu.m_settingsPrefab = __instance.m_settingsPrefab;
+                var newMenu = Object.Instantiate(Auga.Assets.MenuPrefab, parent, false).GetComponent<Menu>();
+                newMenu.CurrentPlayersPrefab = AugaPlayerListPrefab.Create(playerPrefab);
+                WireNewMenuFields(newMenu, __instance);
+                Compendium_Setup.SetupAchievements(newMenu.GetComponentInChildren<AugaCompendiumController>(true));
+                Object.Destroy(__instance.gameObject);
             }
 
             /// <summary>
-            /// Valheim 1.0 port (pause-texts-7): 1.0 added an Invite Friends entry (Menu.InviteFriends, shown by
-            /// SetButtonsEnabled only to a hosting player whose platform can invite). AugaMenu has no such entry, so
-            /// m_inviteButton pointed into the hidden donor. Clone Auga's own Settings entry, label it with the vanilla
-            /// text and wire it to the vanilla handler; AugaInviteRowLayout makes room for it when it is shown.
+            /// The Auga menu prefab predates several Menu fields (m_continueButton, m_skipButton, m_settingsButton,
+            /// m_logoutButton, m_quitButton, lastSaveText, menuEntriesParent, gamepad map, cloud warnings, ...).
+            /// Point the ones Auga has its own buttons for at those, and adopt everything else from the vanilla menu.
             /// </summary>
-            private static void SetupInviteButton(Menu menu, Transform menuEntries)
+            private static void WireNewMenuFields(Menu newMenu, Menu vanilla)
             {
-                var template = menuEntries.Find("Settings") as RectTransform;
-                var playerList = menuEntries.Find("CurrentPlayerList") as RectTransform;
-                var compendium = menuEntries.Find("Compendium") as RectTransform;
-                if (template == null || playerList == null || compendium == null || menuEntries.Find("InviteFriends") != null)
+                var dialog = newMenu.m_menuDialog;
+                Button FindButton(string path) => dialog != null ? dialog.Find(path)?.GetComponent<Button>() : null;
+
+                // The prefab's serialized references for these entries point at file ids that no longer exist in it;
+                // in the built bundle they resolve to null or, worse, to arbitrary objects (touching those crashes
+                // natively). Re-resolve every entry by path in the Auga prefab; anything it lacks is adopted from the
+                // vanilla menu below. The settings prefab must stay vanilla as well (see MainMenu_Setup: the Auga
+                // settings panel predates the tabbed settings screen).
+                newMenu.m_settingsPrefab = AugaSettingsBuilder.GetPrefab(vanilla.m_settingsPrefab);
+                newMenu.m_continueButton = FindButton("MenuEntries/DividerMedium/CloseButton");
+                newMenu.m_settingsButton = FindButton("MenuEntries/Settings");
+                newMenu.m_logoutButton = FindButton("MenuEntries/Logout");
+                newMenu.m_quitButton = FindButton("MenuEntries/Exit");
+                newMenu.m_saveButton = FindButton("MenuEntries/Save");
+                newMenu.m_playerListButton = FindButton("MenuEntries/CurrentPlayerList");
+                newMenu.m_skipButton = FindButton("MenuEntries/SkipIntro");
+                newMenu.m_inviteButton = null;
+                newMenu.lastSaveText = dialog != null ? dialog.Find("MenuEntries/LastTimeSaved")?.GetComponent<TMP_Text>() : null;
+                newMenu.menuEntriesParent = dialog != null ? dialog.Find("MenuEntries") as RectTransform : null;
+                if (newMenu.m_skipButton != null)
                 {
-                    return;
+                    // the prefab's SkipIntro entry has no click handler serialized
+                    newMenu.m_skipButton.onClick.RemoveAllListeners();
+                    newMenu.m_skipButton.onClick.AddListener(newMenu.OnSkip);
                 }
 
-                // The vanilla label's source string ("$menu_..." token) when the game has localized it already.
-                var token = "Invite Friends";
-                var vanillaLabel = menu.m_inviteButton != null ? menu.m_inviteButton.GetComponentInChildren<TMP_Text>(true) : null;
-                if (vanillaLabel != null)
-                {
-                    token = Localization.instance.textMeshStrings.TryGetValue(vanillaLabel, out var source) ? source : vanillaLabel.text;
-                }
+                // Vanilla keeps the gamepad map (with two full-screen darken images), the cloud-storage warnings and
+                // the dialogs under Menu.m_root, which Hide() deactivates. Adopted objects must land under the Auga
+                // menu's own root for the same reason; parking them next to the root leaves them visible while the
+                // menu is closed (the gamepad map darkened the screen until the menu was first opened).
+                var vanillaRoot = vanilla.m_root;
+                var augaRoot = newMenu.m_root != null ? newMenu.m_root : newMenu.transform;
+                SerializedFieldHelper.CopyMissingFields(newMenu, vanilla,
+                    t => vanillaRoot != null && t.IsChildOf(vanillaRoot) ? augaRoot : newMenu.transform,
+                    nameof(Menu.CurrentPlayersPrefab));
 
-                var invite = Object.Instantiate(template, menuEntries, false);
-                invite.name = "InviteFriends";
-                invite.SetSiblingIndex(playerList.GetSiblingIndex() + 1);
-                invite.anchoredPosition = playerList.anchoredPosition;
-                invite.gameObject.SetActive(false);
+                // The vanilla menu is a root Canvas of its own now; the Auga prefab has none and would not render.
+                SetupHelper.EnsureRootCanvas(newMenu.gameObject, vanilla.gameObject);
 
-                var label = invite.GetComponentInChildren<TMP_Text>(true);
-                if (label != null)
+                // Entries adopted from the vanilla menu (save, player list, skip intro, invite, last-save label) are
+                // stacked below Auga's own entries; the game toggles their visibility itself.
+                var entries = dialog != null ? (dialog.Find("MenuEntries") as RectTransform ?? (RectTransform)dialog) : null;
+                if (entries != null)
                 {
-                    label.text = Localization.instance.Localize(token);
-                    if (label.text != token)
+                    var bottom = float.MaxValue;
+                    foreach (RectTransform child in entries)
                     {
-                        // So a language change re-localizes it like the prefab's own labels.
-                        Localization.instance.textMeshStrings[label] = token;
+                        bottom = Mathf.Min(bottom, child.anchoredPosition.y - child.rect.height * (1f - child.pivot.y));
+                    }
+                    if (bottom == float.MaxValue) bottom = 0f;
+
+                    foreach (var adopted in new Component[] { newMenu.m_saveButton, newMenu.lastSaveText, newMenu.m_playerListButton, newMenu.m_inviteButton, newMenu.m_skipButton })
+                    {
+                        if (adopted == null || adopted.transform.IsChildOf(entries))
+                            continue;
+                        var rect = (RectTransform)adopted.transform;
+                        rect.SetParent(entries, false);
+                        rect.anchorMin = rect.anchorMax = new Vector2(0.5f, 1f);
+                        rect.pivot = new Vector2(0.5f, 1f);
+                        rect.anchoredPosition = new Vector2(0f, bottom - 6f);
+                        bottom -= rect.rect.height + 6f;
                     }
                 }
-
-                var button = invite.GetComponent<Button>();
-                button.onClick = new Button.ButtonClickedEvent();
-                button.onClick.AddListener(menu.InviteFriends);
-                menu.m_inviteButton = button;
-
-                var layout = invite.gameObject.AddComponent<AugaInviteRowLayout>();
-                layout.Step = template.anchoredPosition.y - compendium.anchoredPosition.y;
-                foreach (var name in new[] { "SkipIntro", "CurrentPlayerList", "DividerSmall" })
-                {
-                    if (menuEntries.Find(name) is RectTransform row)
-                    {
-                        layout.Rows.Add(row);
-                        layout.BasePositions.Add(row.anchoredPosition);
-                    }
-                }
-            }
-
-            /// <summary>
-            /// Valheim 1.0 port (pause backdrop): vanilla's pause menu dims the game behind it; Auga's only darkening is a
-            /// soft spot behind the entries. Add a full-screen dim in vanilla's modal colour (the Menu's own full-screen
-            /// dialog backdrop) as MenuRoot's first child, so it sits behind the entries, the confirm dialogs and the
-            /// compendium, and blocks clicks to the HUD like vanilla's modal backdrops.
-            /// </summary>
-            private static void SetupBackdrop(Menu menu)
-            {
-                var root = menu.m_root;
-                if (root == null || root.Find("AugaBackdrop") != null)
-                {
-                    return;
-                }
-
-                // Plain black at vanilla's modal-dim strength. (Copying the cloud-warning Image's colour gave an invisible
-                // backdrop in game: that Image is not the dim.)
-                var color = new Color(0f, 0f, 0f, 0.45f);
-
-                var backdrop = new GameObject("AugaBackdrop", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
-                backdrop.layer = root.gameObject.layer;
-                var rect = (RectTransform)backdrop.transform;
-                rect.SetParent(root, false);
-                rect.SetAsFirstSibling();
-                // Centred and far larger than any screen: MenuRoot is not a full-screen rect, so stretching to it covered
-                // only the menu's own area. The canvas clips the rest.
-                rect.anchorMin = new Vector2(0.5f, 0.5f);
-                rect.anchorMax = new Vector2(0.5f, 0.5f);
-                rect.pivot = new Vector2(0.5f, 0.5f);
-                rect.sizeDelta = new Vector2(20000f, 20000f);
-                rect.position = root.GetComponentInParent<Canvas>() is Canvas canvas ? canvas.transform.position : rect.position;
-                var image = backdrop.GetComponent<Image>();
-                image.color = color;
-                image.raycastTarget = true;
             }
         }
 
-        // Valheim 1.0 port (pause-texts-7): SetButtonsEnabled decides whether Invite Friends shows; move the rows above
-        // it up by one entry when it does (AugaMenu positions its entries by hand, it has no layout group).
-        [HarmonyPatch(typeof(Menu), nameof(Menu.SetButtonsEnabled))]
-        public static class Menu_SetButtonsEnabled_Patch
+        /// <summary>
+        /// The Auga menu entries sit at fixed positions. The top slot (player list in multiplayer, skip intro during
+        /// the intro) only shows in some sessions and then touches the top divider while a large gap stays below the
+        /// last entry. After Show() has toggled the entries, slide the whole block so the room above the first
+        /// visible entry equals the room below the last one.
+        /// </summary>
+        [HarmonyPatch(typeof(Menu), nameof(Menu.Show))]
+        public static class Menu_Show_Patch
         {
             [UsedImplicitly]
             public static void Postfix(Menu __instance)
             {
-                if (__instance.m_inviteButton == null)
-                {
+                if (!__instance.name.StartsWith("Auga"))
                     return;
-                }
 
-                var layout = __instance.m_inviteButton.GetComponent<AugaInviteRowLayout>();
-                if (layout != null)
+                var entries = __instance.menuEntriesParent;
+                if (entries == null && __instance.m_menuDialog != null)
+                    entries = __instance.m_menuDialog.Find("MenuEntries") as RectTransform;
+                if (entries == null)
+                    return;
+                var topDivider = entries.Find("DividerSmall") as RectTransform;
+                var bottomDivider = entries.Find("DividerMedium") as RectTransform;
+                if (topDivider == null || bottomDivider == null)
+                    return;
+
+                var block = new List<RectTransform>();
+                float? first = null, last = null;
+                foreach (RectTransform child in entries)
                 {
-                    layout.Apply();
+                    if (child == topDivider || child == bottomDivider)
+                        continue;
+                    block.Add(child);
+                    if (!child.gameObject.activeSelf || child.GetComponent<Button>() == null)
+                        continue;
+                    var y = child.localPosition.y;
+                    first = first.HasValue ? Mathf.Max(first.Value, y) : y;
+                    last = last.HasValue ? Mathf.Min(last.Value, y) : y;
+                }
+                if (!first.HasValue)
+                    return;
+
+                var roomAbove = topDivider.localPosition.y - first.Value;
+                var roomBelow = last.Value - bottomDivider.localPosition.y;
+                var shiftDown = (roomBelow - roomAbove) / 2f;
+                if (Mathf.Abs(shiftDown) < 0.5f)
+                    return;
+                foreach (var child in block)
+                {
+                    child.anchoredPosition -= new Vector2(0f, shiftDown);
                 }
             }
         }
@@ -469,8 +389,9 @@ namespace Auga
             [UsedImplicitly]
             public static void Postfix(Menu __instance)
             {
-                var compendium = __instance.GetComponent<AugaCompendiumController>();
-                if (compendium != null)
+                // the compendium is a child of the menu prefab, not a component on the menu itself
+                var compendium = __instance.GetComponentInChildren<AugaCompendiumController>(true);
+                if (compendium != null && compendium.gameObject.activeSelf)
                 {
                     compendium.HideCompendium();
                 }
@@ -513,22 +434,6 @@ namespace Auga
                 }
 
                 __instance.m_texts.Sort((a, b) => string.Compare(a.m_topic, b.m_topic, StringComparison.CurrentCulture));
-
-                // Valheim 1.0 port (pause-texts-8 / harmony-6): 1.0's player statistics page ($inventory_stats: stats per
-                // difficulty, known worlds, kills, items found/crafted) comes from AddStats, which only the vanilla body
-                // calls. Add it to the unfiltered list (not the tutorials one), at the top.
-                if (filter == null)
-                {
-                    var before = __instance.m_texts.Count;
-                    __instance.AddStats();
-                    if (__instance.m_texts.Count > before)
-                    {
-                        var stats = __instance.m_texts[__instance.m_texts.Count - 1];
-                        __instance.m_texts.RemoveAt(__instance.m_texts.Count - 1);
-                        __instance.m_texts.Insert(0, stats);
-                    }
-                }
-
                 return false;
             }
 
@@ -542,24 +447,100 @@ namespace Auga
     }
 
     /// <summary>
-    /// Valheim 1.0 port (pause-texts-7): AugaMenu places its entries at fixed positions. When the cloned Invite Friends
-    /// entry is shown it takes the Player list / Skip Intro slot, and those rows plus the top divider move up one step.
+    /// The join code overlay (top of the screen on the first spawn, and while the pause menu is open) is vanilla and
+    /// untouched by Auga; its show / hide moments go to the log so a session where it lingers can be traced.
     /// </summary>
-    public class AugaInviteRowLayout : MonoBehaviour
+    [HarmonyPatch]
+    public static class JoinCode_Trace_Patch
     {
-        public float Step = 46f;
-        public readonly List<RectTransform> Rows = new List<RectTransform>();
-        public readonly List<Vector2> BasePositions = new List<Vector2>();
-
-        public void Apply()
+        public static System.Collections.Generic.IEnumerable<System.Reflection.MethodBase> TargetMethods()
         {
-            var offset = gameObject.activeSelf ? new Vector2(0f, Step) : Vector2.zero;
-            for (var i = 0; i < Rows.Count; i++)
+            yield return AccessTools.Method(typeof(JoinCode), "Activate");
+            yield return AccessTools.Method(typeof(JoinCode), "Deactivate");
+        }
+
+        public static void Postfix(JoinCode __instance, System.Reflection.MethodBase __originalMethod)
+        {
+            Auga.Log($"join code {__originalMethod.Name} at {Time.realtimeSinceStartup:F1}s: shown={__instance.m_root.activeSelf} inMenu={__instance.m_inMenu} visibleFor={__instance.m_isVisible:F1}s code={(string.IsNullOrEmpty(__instance.m_joinCode) ? "none" : "set")}");
+        }
+    }
+
+    /// <summary>
+    /// The in-game player list (pause menu > Current Players) is vanilla's SessionPlayerList prefab. Auga's menu
+    /// instantiates a restyled copy of it instead: the copy is made once per game scene under an inactive holder
+    /// (nothing in it runs there), restyled in place and handed to the menu as its CurrentPlayersPrefab. The copy
+    /// carries the generic panel restyle for the window (background, title, Back button, scrollbar) and Auga
+    /// fonts, colours and the flat blue selection on the row template, which vanilla clones for every player. The
+    /// row's icon buttons (block / report / mute / kick) and every serialized reference stay as they are, so the
+    /// vanilla list logic keeps working. The holder is a plain scene object: it goes with the scene, and the next
+    /// Menu.Start builds a fresh copy from whatever prefab that scene loaded.
+    /// </summary>
+    public static class AugaPlayerListPrefab
+    {
+        private static GameObject _holder;
+
+        public static GameObject Create(GameObject vanillaPrefab)
+        {
+            if (vanillaPrefab == null)
+                return null;
+            if (_holder != null)
+                Object.Destroy(_holder);
+            _holder = new GameObject("AugaPlayerListPrefab");
+            _holder.SetActive(false);
+            var copy = Object.Instantiate(vanillaPrefab, _holder.transform, false);
+            copy.name = vanillaPrefab.name;
+            try
             {
-                if (Rows[i] != null)
-                {
-                    Rows[i].anchoredPosition = BasePositions[i] + offset;
-                }
+                Restyle(copy);
+            }
+            catch (Exception e)
+            {
+                Debug.LogError($"[Auga] Restyling the player list prefab failed: {e}");
+            }
+            return copy;
+        }
+
+        private static void Restyle(GameObject copy)
+        {
+            var panel = copy.transform.Find("panel");
+            if (panel == null)
+                return;
+            var list = copy.GetComponent<SessionPlayerList>();
+            var template = list != null && list._ownPlayer != null ? list._ownPlayer.transform : panel.Find("playerList/Viewport/Content/Player");
+
+            // vanilla's plank is the panel's own image; the restyler only hides backdrops that are children
+            var plank = panel.GetComponent<Image>();
+            if (plank != null && plank.sprite != null)
+                plank.enabled = false;
+            AugaPanelRestyler.Restyle(panel, new RestyleOptions
+            {
+                Titles = { "Settings_topic" },
+                DetectHeaders = false,
+                Skip = { "Player", "Misc" },
+            });
+
+            if (template == null)
+                return;
+            AugaPanelRestyler.Restyle(template, new RestyleOptions
+            {
+                ReplaceBackground = false,
+                ReplaceButtons = false,
+                ReplaceScrollbars = false,
+                DetectHeaders = false,
+            });
+            // the row: Auga's dark tone instead of vanilla's box art, the selected row Auga's flat blue highlight
+            // (as in the character list and the manage saves rows) instead of vanilla's frame
+            var background = template.Find("Background")?.GetComponent<Image>();
+            if (background != null)
+            {
+                background.sprite = null;
+                background.color = new Color(AugaPanelRestyler.Brown7.r, AugaPanelRestyler.Brown7.g, AugaPanelRestyler.Brown7.b, 0.5f);
+            }
+            var selection = template.Find("Background/Selection")?.GetComponent<Image>();
+            if (selection != null)
+            {
+                selection.sprite = null;
+                selection.color = AugaPanelRestyler.SelectionBlue;
             }
         }
     }

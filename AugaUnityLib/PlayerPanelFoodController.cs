@@ -1,5 +1,6 @@
-using System;
+﻿using System;
 using JetBrains.Annotations;
+using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -13,17 +14,14 @@ namespace AugaUnity
 
         public int Index;
         public bool FlashOnCanEatAgain;
-        [CanBeNull] public Text NameText;
+        [CanBeNull] public TMP_Text NameText;
         public Image Icon;
         public Image CountdownImage;
-        [CanBeNull] public Text TimeRemainingText;
-        // Valheim 1.0 port (#59): set at runtime for the HUD food icons, whose prefab has no time text. Vanilla 1.0's
-        // compact "12m" / "45s" (seconds flashing) instead of the player panel's "m:ss / m:ss".
-        [NonSerialized] public bool CompactTimeFormat;
-        [CanBeNull] public Text HealthText;
-        [CanBeNull] public Text StaminaText;
-        [CanBeNull] public Text HealingText;
-        [CanBeNull] public Text EitrText;
+        [CanBeNull] public TMP_Text TimeRemainingText;
+        [CanBeNull] public TMP_Text HealthText;
+        [CanBeNull] public TMP_Text StaminaText;
+        [CanBeNull] public TMP_Text HealingText;
+        [CanBeNull] public TMP_Text EitrText;
         [CanBeNull] public Image HealthIcon;
         [CanBeNull] public Image StaminaIcon;
         [CanBeNull] public Image HealingIcon;
@@ -38,7 +36,7 @@ namespace AugaUnity
         {
             _tooltip = GetComponent<UITooltip>();
             _foodTooltip = GetComponent<FoodTooltip>();
-            _hightlightColor = ColorUtility.ToHtmlStringRGB(HighlightColor);
+            _hightlightColor = "#" + ColorUtility.ToHtmlStringRGB(HighlightColor);
             Show(false);
             Update();
         }
@@ -111,9 +109,7 @@ namespace AugaUnity
             _foodTooltip.Food = food;
             
             var percent = food.m_time / food.m_item.m_shared.m_foodBurnTime;
-            // Valheim 1.0: food timers tick in world-modifier scaled units; vanilla shows m_time / Game.m_foodRate.
-            var foodRate = Game.m_foodRate > 0f ? Game.m_foodRate : 1f;
-            var secondsRemaining = Mathf.CeilToInt(food.m_time / foodRate);
+            var secondsRemaining = Mathf.CeilToInt(food.m_time);
 
             if (NameText != null)
             {
@@ -121,23 +117,8 @@ namespace AugaUnity
             }
 
             var timeDisplay = TimeSpan.FromSeconds(secondsRemaining).ToString(TimeFormat);
-            var totalTimeDisplay = TimeSpan.FromSeconds(Mathf.CeilToInt(food.m_item.m_shared.m_foodBurnTime / foodRate)).ToString(TimeFormat);
-            if (TimeRemainingText != null && CompactTimeFormat)
-            {
-                // Valheim 1.0 port (#59): mirrors Hud.UpdateFood.
-                var remaining = food.m_time / foodRate;
-                if (remaining >= 60f)
-                {
-                    TimeRemainingText.text = Mathf.CeilToInt(remaining / 60f) + "m";
-                    TimeRemainingText.color = Color.white;
-                }
-                else
-                {
-                    TimeRemainingText.text = Mathf.FloorToInt(remaining) + "s";
-                    TimeRemainingText.color = new Color(1f, 1f, 1f, 0.4f + Mathf.Sin(Time.time * 10f) * 0.6f);
-                }
-            }
-            else if (TimeRemainingText != null)
+            var totalTimeDisplay = TimeSpan.FromSeconds(Mathf.CeilToInt(food.m_item.m_shared.m_foodBurnTime)).ToString(TimeFormat);
+            if (TimeRemainingText != null)
             {
                 TimeRemainingText.text = $"<color={_hightlightColor}>{timeDisplay}</color> / {totalTimeDisplay}";
             }

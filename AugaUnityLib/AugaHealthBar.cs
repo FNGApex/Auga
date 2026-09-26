@@ -1,5 +1,6 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Linq;
+using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -8,10 +9,7 @@ namespace AugaUnity
     [ExecuteInEditMode]
     public class AugaHealthBar : MonoBehaviour
     {
-        public enum ModeType { Health, Stamina, Eitr, Adrenaline };
-
-        /// <summary>Test hook: when >= 0 the adrenaline bar shows this value out of 100 instead of the player's.</summary>
-        public static float DebugAdrenalineOverride = -1f;
+        public enum ModeType { Health, Stamina, Eitr };
         public enum TextPosition { Off = -1, Above, Below, Center, Start, End };
         public enum TextDisplayMode { JustValue, ValueAndMax, ValueMaxPercent, JustPercent }
 
@@ -35,7 +33,7 @@ namespace AugaUnity
         public TextDisplayMode TextDisplay = TextDisplayMode.JustValue;
         public bool ShowTicks = true;
         [Header("Above, Below, Center, Start, End")]
-        public Text[] CurrentValueText = { null, null, null, null, null };
+        public TMP_Text[] CurrentValueText = { null, null, null, null, null };
 
         [Range(0, 270)]
         public float CurrentValue;
@@ -49,11 +47,6 @@ namespace AugaUnity
         public virtual void Start()
         {
             TickPrefab.gameObject.SetActive(false);
-            // GuiBar.SetValue re-arms m_delayTimer on every rise while m_smoothFill is set, so healing applied every
-            // frame (regen mods) keeps the health fill frozen. HealthBar.prefab ships 0.5 s; stamina/eitr already use 0.
-            // Found by Morgott (UberMorgott/Valheim-Mod-Auga-Fork@1ba3882).
-            if (FastBar != null)
-                FastBar.m_changeDelay = 0f;
             LateUpdate();
         }
 
@@ -83,19 +76,11 @@ namespace AugaUnity
                             MaxValue = player.GetMaxEitr();
                             MaxPotentialValue = GetMaxPotentialEitr(player);
                             break;
-
-                        // Valheim 1.0: adrenaline comes from equipment (trinkets), has no food component, and the
-                        // vanilla bar is only on screen while there is some.
-                        case ModeType.Adrenaline:
-                            CurrentValue = DebugAdrenalineOverride >= 0f ? DebugAdrenalineOverride : player.GetAdrenaline();
-                            MaxValue = DebugAdrenalineOverride >= 0f ? 100f : player.GetMaxAdrenaline();
-                            MaxPotentialValue = Mathf.Max(1f, MaxValue);
-                            break;
                     }
                 }
             }
 
-            var barIsVisible = !Hide && MaxValue > 0 && (Mode != ModeType.Adrenaline || CurrentValue > 0f);
+            var barIsVisible = !Hide && MaxValue > 0;
             Background.gameObject.SetActive(barIsVisible);
             BackgroundPotential.gameObject.SetActive(barIsVisible);
             TickContainer.gameObject.SetActive(ShowTicks && barIsVisible);

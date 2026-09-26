@@ -1,10 +1,11 @@
-using HarmonyLib;
+﻿using HarmonyLib;
+using BepInEx;
 using UnityEngine;
 using UnityEngine.UI;
 
 namespace AugaApiExample
 {
-    [HarmonyPatch(typeof(InventoryGui), "Awake")]
+    [HarmonyPatch(typeof(InventoryGui), nameof(InventoryGui.Awake))]
     public static class InventoryGui_Patch
     {
         public static void Postfix(InventoryGui __instance)

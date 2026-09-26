@@ -14,7 +14,7 @@ using Object = UnityEngine.Object;
 namespace Auga
 {
     [PublicAPI]
-    public static partial class API
+    public static class API
     {
         public static string RedText = "#CD2121";
         public static string Red = "#AD1616";
@@ -74,37 +74,6 @@ namespace Auga
 #endif
         }
 
-        // Valheim 1.0 port: everything in the 1.0 UI (and in Auga) is TextMeshPro; the legacy Font accessors above are
-        // of no use on a TMP_Text.
-        [UsedImplicitly]
-        public static TMPro.TMP_FontAsset GetRegularTmpFont()
-        {
-#if ! API
-            return Auga.AssetBundle != null ? Auga.AssetBundle.LoadAsset<TMPro.TMP_FontAsset>("SourceSansPro-Regular SDF") : null;
-#else
-            return null;
-#endif
-        }
-
-        [UsedImplicitly]
-        public static TMPro.TMP_FontAsset GetBoldTmpFont()
-        {
-#if ! API
-            return Auga.AssetBundle != null ? Auga.AssetBundle.LoadAsset<TMPro.TMP_FontAsset>("SourceSansPro-Bold SDF") : null;
-#else
-            return null;
-#endif
-        }
-
-        [UsedImplicitly]
-        public static TMPro.TMP_FontAsset GetHeaderTmpFont()
-        {
-#if ! API
-            return Auga.AssetBundle != null ? Auga.AssetBundle.LoadAsset<TMPro.TMP_FontAsset>("Norse SDF") : null;
-#else
-            return null;
-#endif
-        }
         [UsedImplicitly]
         public static Sprite GetItemBackgroundSprite()
         {
@@ -121,12 +90,13 @@ namespace Auga
         public static GameObject Panel_Create(Transform parent, Vector2 size, string name, bool withCornerDecoration)
         {
 #if ! API
-            var panel = Object.Instantiate(Auga.Assets.PanelBase, parent);
             if (Auga.Assets.PanelBase == null)
             {
-                Auga.LogError($"Auga.Assets.PanelBase is null");
-                Thread.Sleep(25000);
+                Auga.LogError("Panel_Create: Auga.Assets.PanelBase is null");
+                return null;
             }
+
+            var panel = Object.Instantiate(Auga.Assets.PanelBase, parent);
             panel.name = name;
             if (!withCornerDecoration)
             {
@@ -227,9 +197,7 @@ namespace Auga
             var button = Object.Instantiate(Auga.Assets.DiamondButton, parent);
             button.name = name;
 
-            // The root carries the diamond frame; the icon slot is the child named "Image".
-            var iconSlot = button.transform.Find("Image");
-            var image = iconSlot != null ? iconSlot.GetComponent<Image>() : button.GetComponentInChildren<Image>();
+            var image = button.GetComponentInChildren<Image>();
             if (icon == null)
             {
                 image.enabled = false;
@@ -308,7 +276,6 @@ namespace Auga
                 colorValues.TextColors.pressedColor = pressed;
                 colorValues.TextColors.selectedColor = selected;
                 colorValues.TextColors.disabledColor = disabled;
-                colorValues.UseChildLabel = true;
             }
 
             var text = button.GetComponentInChildren<TMP_Text>();
@@ -628,21 +595,6 @@ namespace Auga
                 return;
             }
 
-            // Auga's text boxes are TextMeshPro; a legacy Text can only mean "the main column". (Passing it on used
-            // to bind to AddLine(object, object) and print the component's ToString() as a label.)
-            tooltipTextBox.AddLine(tooltipTextBox.Text, s, localize, overwrite);
-#endif
-        }
-
-        [UsedImplicitly]
-        public static void TooltipTextBox_AddLine(GameObject tooltipTextBoxGO, TMPro.TMP_Text t, object s, bool localize = true, bool overwrite = false)
-        {
-#if ! API
-            if (!TextBoxCheck(tooltipTextBoxGO, out var tooltipTextBox))
-            {
-                return;
-            }
-
             tooltipTextBox.AddLine(t, s, localize, overwrite);
 #endif
         }
@@ -840,7 +792,7 @@ namespace Auga
                 return null;
             }
 
-            return complexTooltip.AddTextBox(complexTooltip.UpgradeLabelsPrefab)?.gameObject;
+            return complexTooltip.AddTextBox(complexTooltip.UpgradeLabelsPrefab).gameObject;
 #else
             return null;
 #endif
@@ -855,7 +807,7 @@ namespace Auga
                 return null;
             }
 
-            return complexTooltip.AddTextBox(complexTooltip.UpgradeTwoColumnTextBoxPrefab)?.gameObject;
+            return complexTooltip.AddTextBox(complexTooltip.UpgradeTwoColumnTextBoxPrefab).gameObject;
 #else
             return null;
 #endif
@@ -870,7 +822,7 @@ namespace Auga
                 return null;
             }
 
-            return complexTooltip.AddTextBox(complexTooltip.CheckBoxTextBoxPrefab)?.gameObject;
+            return complexTooltip.AddTextBox(complexTooltip.CheckBoxTextBoxPrefab).gameObject;
 #else
             return null;
 #endif

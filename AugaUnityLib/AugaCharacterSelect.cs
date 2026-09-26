@@ -1,7 +1,8 @@
-using System.Collections;
+﻿using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using JetBrains.Annotations;
+using TMPro;
 using UnityEngine;
 using UnityEngine.Experimental.Rendering;
 using UnityEngine.PostProcessing;
@@ -108,7 +109,7 @@ namespace AugaUnity
         public RectTransform CharacterList;
         public RenderTexture RenderTexture;
         public GameObject SourceInfoPanel;
-        public Text SourceInfoContent;
+        public TMP_Text SourceInfoContent;
 
         private readonly List<CharacterSelectPortrait> _portraits = new List<CharacterSelectPortrait>();
         private bool _onFirstUpdate;
@@ -173,10 +174,10 @@ namespace AugaUnity
     public class CharacterSelectPortrait : MonoBehaviour
     {
         public RawImage Image;
-        public Text CharacterName;
+        public TMP_Text CharacterName;
         public Button Button;
         public GameObject Selected;
-        public Text StatsText;
+        public TMP_Text StatsText;
         public Image LocalSave;
         public Image LegacySave;
         public Image CloudSave;
@@ -203,7 +204,7 @@ namespace AugaUnity
             _index = index;
             CharacterName.text = profile.m_playerName;
             Button.onClick.AddListener(() => FejdStartup.instance.SetSelectedProfile(_profile.m_filename));
-            StatsText.text = $"{profile.m_playerStats[0].m_stats[PlayerStatType.Deaths]}\n{profile.m_playerStats[0].m_stats[PlayerStatType.Builds]}\n{profile.m_playerStats[0].m_stats[PlayerStatType.Crafts]}";
+            StatsText.text = $"{profile.GetStat(PlayerStatType.Deaths)}\n{profile.GetStat(PlayerStatType.Builds)}\n{profile.GetStat(PlayerStatType.Crafts)}";
 
             var outputFilePath = AugaCharacterSelectPhotoBooth.GetOutputFilePathForProfile(profile);
             if (File.Exists(outputFilePath))

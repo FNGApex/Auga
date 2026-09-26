@@ -1,16 +1,5 @@
 ﻿# Project Auga
 ##### by RandyKnapp / n4
-##### Port and Update by FNGApex and Claude, I have a SWE Job, I have a CS Degree, I don't have time to manualy port hunderds of screen but I can make AI do it.
-##### I am not the Voulenteer from the Discord, if you found this lurking feel free to try it out, I have not posted this on any channels and do not intent to until it's PR ready, do not trust people posting this pretending to be me. My GitHub is linked to my discord profile and is visible.
-> ## WORK IN PROGRESS: Valheim 1.0 migration - broken, do not use for play
->
-> This fork is an **in-progress migration of Project Auga to Valheim 1.0 ("Deep North", Unity 6)**.
-> It is **still broken and does not work** as a finished mod: screens are missing, others are half-ported,
-> and it can crash or freeze the game. There is no release build.
->
-> **Test at your own risk, and only if you are a developer who can read a BepInEx log and file a bug report.**
-> Upstream (RandyKnapp/Auga) has not been updated for 1.0; nothing here is endorsed by the original authors.
-> Port notes live in `PORT_1.0.md`, the audits in `AUDIT_1.0.md` / `AUDIT2_1.0.md`, and the upstream issue review in `ISSUES_1.0.md`.
 
 Project Auga is a completely re-imagined, modder-friendly UI-overhaul for Valheim. Every last piece of UI was considered and reworked from the ground-up to create a more helpful and immersive player experience, all while remaining familiar to Valheim veterans.
 

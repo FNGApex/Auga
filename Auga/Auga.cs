@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
@@ -27,6 +27,13 @@ namespace Auga
         public GameObject MenuPrefab;
         public GameObject TextViewerPrefab;
         public GameObject MainMenuPrefab;
+        public GameObject SelectCharacterPrefab;
+        public GameObject NewCharacterPanelPrefab;
+        public GameObject StartGamePrefab;
+        public Sprite ServerStatusOnline;
+        public Sprite ServerStatusOffline;
+        public Sprite ServerStatusRefresh;
+        public Sprite ServerStatusUnknown;
         public GameObject BuildHudElement;
         public GameObject SettingsPrefab;
         public GameObject MessageHud;
@@ -40,6 +47,15 @@ namespace Auga
         public GameObject ServerListElement;
         public GameObject PasswordDialog;
         public GameObject ConnectingDialog;
+        public GameObject LabeledDropdown;
+        public GameObject LabeledCheckbox;
+        public GameObject LabeledSliderWithValue;
+        public GameObject LabeledKeybind;
+        public GameObject LanguageTooltip;
+        public GameObject MenuButtonSmall;
+        public GameObject ChangeLogPrefab;
+        public GameObject AugaLogoSmall;
+        public GameObject ScrollBar;
         public GameObject PanelBase;
         public GameObject ButtonSmall;
         public GameObject ButtonMedium;
@@ -51,6 +67,7 @@ namespace Auga
         public Font SourceSansProSemiBold;
         public Font SourceSansProRegular;
         public Sprite ItemBackgroundSprite;
+        public Sprite ContainerDiamond;
         public GameObject InventoryTooltip;
         public GameObject SimpleTooltip;
         public GameObject DividerSmall;
@@ -60,12 +77,6 @@ namespace Auga
         public Sprite RecyclingPanelIcon;
         public GameObject BuildHud;
         public GameObject LeftWristMountUI;
-        // Art pass 2026-09-24 (port-tools/art_pass.py)
-        public Sprite ListRow;
-        public Sprite ListRowSelected;
-        public Sprite ToastPlate;
-        public Sprite RadialCenter;
-        public Sprite PortraitRing;
     }
 
     public class AugaColors
@@ -120,18 +131,7 @@ namespace Auga
         public static ConfigEntry<StatBarTextPosition> EitrBarTextPosition;
         public static ConfigEntry<bool> EitrBarShowTicks;
         
-        public static ConfigEntry<bool> AdrenalineBarShow;
-        public static ConfigEntry<StatBarTextDisplayMode> AdrenalineBarTextDisplay;
-        public static ConfigEntry<StatBarTextPosition> AdrenalineBarTextPosition;
-
         public static ConfigEntry<bool> AugaChatShow;
-        public static ConfigEntry<bool> PortDiagnosticsEnabled;
-        public static ConfigEntry<bool> SettingsSkinEnabled;
-        public static ConfigEntry<bool> PanelSkinsEnabled;
-        public static ConfigEntry<bool> BuildMenuSkinEnabled;
-
-        /// <summary>The loaded Auga bundle, kept so later code can pull fonts and art that are not in AugaAssets.</summary>
-        public static AssetBundle AssetBundle;
 
         public static readonly AugaAssets Assets = new AugaAssets();
         public static readonly AugaColors Colors = new AugaColors();
@@ -164,8 +164,7 @@ namespace Auga
                     Debug.LogWarning($"Project Auga - Version {Assembly.GetExecutingAssembly().GetName().Version}");
                     Debug.LogWarning($"Valheim - Version {(global::Version.GetVersionString())}");
 
-                    // Valheim 1.0 port: 1.x has m_minor 0 again, so the 0.217 test alone would reject it.
-                    if (global::Version.CurrentVersion.m_major >= 1 || (global::Version.CurrentVersion.m_minor == 217 && global::Version.CurrentVersion.m_patch >= 27 ) || global::Version.CurrentVersion.m_minor > 217)
+                    if ((global::Version.CurrentVersion.m_minor == 217 && global::Version.CurrentVersion.m_patch >= 27 ) || global::Version.CurrentVersion.m_minor > 217)
                     {
                         Debug.LogWarning($"GAME VERSION CHECK - PASSED");
                         Debug.LogWarning($"==============================================================================");
@@ -183,8 +182,7 @@ namespace Auga
             }
 
             LoadDependencies();
-            // Valheim 1.0 port: APIManager.dll (redirects AugaAPI calls made by other mods) isn't in the repo.
-            //APIManager.Patcher.Patch();
+            APIManager.Patcher.Patch();
             LoadTranslations();
             LoadConfig();
             LoadAssets();
@@ -199,11 +197,6 @@ namespace Auga
             HasJewelcrafting = Chainloader.PluginInfos.TryGetValue("org.bepinex.plugins.jewelcrafting", out var jewelcraftingPlugin);
 
             _harmony = Harmony.CreateAndPatchAll(Assembly.GetExecutingAssembly(), PluginID);
-            // Another plugin may have built the localization before our SetupLanguage postfix existed.
-            if (Localization.m_instance != null)
-            {
-                AddTranslations(Localization.m_instance);
-            }
 
             if (HasChatter)
             {
@@ -461,17 +454,22 @@ namespace Auga
 
         private void LoadDependencies()
         {
-            var assembly = Assembly.GetCallingAssembly();
+            // Auga's own assembly, named explicitly: GetCallingAssembly() answered with whatever called Awake, and
+            // when Awake is detoured (a Harmony or MonoMod hook from another mod) that is a dynamic assembly, so the
+            // embedded resources ("Auga.<file>") were looked up under the wrong name and never found
+            var assembly = typeof(Auga).Assembly;
+            LoadEmbeddedAssembly(assembly, "ui_lib.dll"); // Fishlabs.GuiInputField shim for the prefabs (see UiLibShim)
             LoadEmbeddedAssembly(assembly, "fastJSON.dll");
             LoadEmbeddedAssembly(assembly, "Unity.Auga.dll");
         }
 
         private static void LoadEmbeddedAssembly(Assembly assembly, string assemblyName)
         {
-            var stream = Assembly.GetExecutingAssembly().GetManifestResourceStream($"{assembly.GetName().Name}.{assemblyName}");
+            var resourceName = $"{assembly.GetName().Name}.{assemblyName}";
+            var stream = assembly.GetManifestResourceStream(resourceName);
             if (stream == null)
             {
-                LogError($"Could not load embedded assembly ({assemblyName})!");
+                LogError($"Could not load embedded assembly ({assemblyName}): no resource '{resourceName}' in {assembly.GetName().Name}. Resources: {string.Join(", ", assembly.GetManifestResourceNames())}");
                 return;
             }
 
@@ -483,12 +481,6 @@ namespace Auga
             }
         }
 
-        private static readonly Dictionary<string, string> _translations = new Dictionary<string, string>();
-
-        // Valheim 1.0 port: only parse here. Touching Localization.instance from Awake builds it before Steam is up; on
-        // an install with no saved "language" pref that reaches SteamUtils and throws, which aborted Auga.Awake. The
-        // words are added whenever the game loads a language instead (see Localization_SetupLanguage_Patch), which also
-        // keeps them after a language change (SetLanguage clears every word first).
         private static void LoadTranslations()
         {
             var translationsJsonText = LoadJsonText("translations.json");
@@ -502,25 +494,8 @@ namespace Auga
             {
                 if (!string.IsNullOrEmpty(translation.Key) && !string.IsNullOrEmpty(translation.Value.ToString()))
                 {
-                    _translations[translation.Key] = translation.Value.ToString();
+                    Localization.instance.AddWord(translation.Key, translation.Value.ToString());
                 }
-            }
-        }
-
-        internal static void AddTranslations(Localization localization)
-        {
-            foreach (var translation in _translations)
-            {
-                localization.AddWord(translation.Key, translation.Value);
-            }
-        }
-
-        [HarmonyPatch(typeof(Localization), nameof(Localization.SetupLanguage))]
-        public static class Localization_SetupLanguage_Patch
-        {
-            public static void Postfix(Localization __instance)
-            {
-                AddTranslations(__instance);
             }
         }
 
@@ -548,21 +523,12 @@ namespace Auga
             EitrBarTextPosition = Config.Bind("StatBars", "EitrBarTextPosition", StatBarTextPosition.Center, "Changes where the label of the eitr bar is displayed.");
             EitrBarShowTicks = Config.Bind("StatBars", "Eitr", true, "Show a faint line on the bar every 25 units");
             
-            AdrenalineBarShow = Config.Bind("StatBars", "AdrenalineBarShow", true, "If false, hides the adrenaline bar completely.");
-            AdrenalineBarTextDisplay = Config.Bind("StatBars", "AdrenalineBarTextDisplay", StatBarTextDisplayMode.JustValue, "Changes how the label of the adrenaline bar is displayed.");
-            AdrenalineBarTextPosition = Config.Bind("StatBars", "AdrenalineBarTextPosition", StatBarTextPosition.Center, "Changes where the label of the adrenaline bar is displayed.");
-
             AugaChatShow = Config.Bind("AugaChat", "Show Auga Chat. Disable to use other mods. (Requires Restart)", true, "If false, disables the Auga Chat window display");
-            BuildMenuSkinEnabled = Config.Bind("BuildMenu", "AugaBuildMenuSkin", true, "Re-skin the game's build menu in the Auga style. Off = vanilla look.");
-            SettingsSkinEnabled = Config.Bind("Settings", "AugaSettingsSkin", true, "Re-skin the game's settings screen in the Auga style. Off = vanilla look.");
-            PanelSkinsEnabled = Config.Bind("Panels", "AugaPanelSkins", true, "Re-skin the remaining vanilla panels (popups, achievements, player list, world modifiers, radial menu, piece author) in the Auga style. Off = vanilla look.");
-            PortDiagnosticsEnabled = Config.Bind("Debug", "PortDiagnostics", true, "Valheim 1.0 port aid: after each screen is set up, log the UI references on the vanilla components that are destroyed or unassigned.");
         }
 
         private static void LoadAssets()
         {
             var assetBundle = LoadAssetBundle("augaassets");
-            AssetBundle = assetBundle;
             Assets.AugaLogo = assetBundle.LoadAsset<GameObject>("AugaLogo");
             Assets.InventoryScreen = assetBundle.LoadAsset<GameObject>("Inventory_screen");
             Assets.Cursor = assetBundle.LoadAsset<Texture2D>("Cursor2");
@@ -570,6 +536,13 @@ namespace Auga
             Assets.TextViewerPrefab = assetBundle.LoadAsset<GameObject>("AugaTextViewer");
             Assets.Hud = assetBundle.LoadAsset<GameObject>("HUD");
             Assets.MainMenuPrefab = assetBundle.LoadAsset<GameObject>("MainMenu");
+            Assets.SelectCharacterPrefab = assetBundle.LoadAsset<GameObject>("SelectCharacter");
+            Assets.NewCharacterPanelPrefab = assetBundle.LoadAsset<GameObject>("NewCharacterPanel");
+            Assets.StartGamePrefab = assetBundle.LoadAsset<GameObject>("StartGame");
+            Assets.ServerStatusOnline = assetBundle.LoadAsset<Sprite>("status");
+            Assets.ServerStatusOffline = assetBundle.LoadAsset<Sprite>("status_no");
+            Assets.ServerStatusRefresh = assetBundle.LoadAsset<Sprite>("status_refresh");
+            Assets.ServerStatusUnknown = assetBundle.LoadAsset<Sprite>("status_unknown");
             Assets.BuildHudElement = assetBundle.LoadAsset<GameObject>("BuildHudElement");
             Assets.SettingsPrefab = assetBundle.LoadAsset<GameObject>("AugaSettings");
             Assets.MessageHud = assetBundle.LoadAsset<GameObject>("AugaMessageHud");
@@ -583,6 +556,15 @@ namespace Auga
             Assets.ServerListElement = assetBundle.LoadAsset<GameObject>("ServerListElement");
             Assets.PasswordDialog = assetBundle.LoadAsset<GameObject>("AugaPassword");
             Assets.ConnectingDialog = assetBundle.LoadAsset<GameObject>("AugaConnecting");
+            Assets.LabeledDropdown = assetBundle.LoadAsset<GameObject>("LabeledDropdown");
+            Assets.LabeledCheckbox = assetBundle.LoadAsset<GameObject>("LabeledCheckbox");
+            Assets.LabeledSliderWithValue = assetBundle.LoadAsset<GameObject>("LabeledSliderWithValue");
+            Assets.LabeledKeybind = assetBundle.LoadAsset<GameObject>("LabeledKeybind");
+            Assets.LanguageTooltip = assetBundle.LoadAsset<GameObject>("LanguageTooltip");
+            Assets.MenuButtonSmall = assetBundle.LoadAsset<GameObject>("MenuButtonSmall");
+            Assets.ChangeLogPrefab = assetBundle.LoadAsset<GameObject>("ChangeLog");
+            Assets.AugaLogoSmall = assetBundle.LoadAsset<GameObject>("AugaLogoSmall");
+            Assets.ScrollBar = assetBundle.LoadAsset<GameObject>("ScrollBar");
             Assets.PanelBase = assetBundle.LoadAsset<GameObject>("AugaPanelBase");
             Assets.ButtonSmall = assetBundle.LoadAsset<GameObject>("ButtonSmall");
             Assets.ButtonMedium = assetBundle.LoadAsset<GameObject>("ButtonMedium");
@@ -594,6 +576,7 @@ namespace Auga
             Assets.SourceSansProSemiBold = assetBundle.LoadAsset<Font>("SourceSansPro-SemiBold");
             Assets.SourceSansProRegular = assetBundle.LoadAsset<Font>("SourceSansPro-Regular");
             Assets.ItemBackgroundSprite = assetBundle.LoadAsset<Sprite>("Container_Square_A");
+            Assets.ContainerDiamond = assetBundle.LoadAsset<Sprite>("Container_Diamond");
             Assets.InventoryTooltip = assetBundle.LoadAsset<GameObject>("InventoryTooltip");
             Assets.SimpleTooltip = assetBundle.LoadAsset<GameObject>("SimpleTooltip");
             Assets.DividerSmall = assetBundle.LoadAsset<GameObject>("DividerSmall");
@@ -603,11 +586,58 @@ namespace Auga
             Assets.RecyclingPanelIcon = assetBundle.LoadAsset<Sprite>("RecyclingPanel");
             Assets.LeftWristMountUI = assetBundle.LoadAsset<GameObject>("LeftWristMountUI");
             Assets.BuildHud = assetBundle.LoadAsset<GameObject>("BuildHud");
-            Assets.ListRow = assetBundle.LoadAsset<Sprite>("AugaListRow");
-            Assets.ListRowSelected = assetBundle.LoadAsset<Sprite>("AugaListRowSelected");
-            Assets.ToastPlate = assetBundle.LoadAsset<Sprite>("AugaToastPlate");
-            Assets.RadialCenter = assetBundle.LoadAsset<Sprite>("AugaRadialCenter");
-            Assets.PortraitRing = assetBundle.LoadAsset<Sprite>("AugaPortraitRing");
+
+            // The Auga buttons carry a click sfx and a "select" sfx. ButtonSfx now plays the select sfx from
+            // OnSelect, which a mouse triggers on pointer down, so every click sounded twice (down and up).
+            // Strip the select sfx from every prefab asset in the bundle (the tab buttons are stand-alone
+            // prefabs instantiated by the tab controllers); every instance made from them inherits that.
+            var prefabs = assetBundle.LoadAllAssets<GameObject>();
+            RemoveSelectSfx(prefabs);
+            WarnAboutClassicTexts(prefabs);
+        }
+
+        /// <summary>
+        /// Auga is TextMeshPro only: every bundled prefab that still carries a classic UnityEngine.UI.Text is reported
+        /// (to the Unity log, so it shows regardless of Auga's own logging setting) so it can be fixed in Unity.
+        /// </summary>
+        private static void WarnAboutClassicTexts(params GameObject[] prefabs)
+        {
+            var offenders = 0;
+            foreach (var prefab in prefabs)
+            {
+                if (prefab == null || prefab.transform.parent != null)
+                    continue;
+                var texts = prefab.GetComponentsInChildren<Text>(true);
+                if (texts.Length == 0)
+                    continue;
+                offenders++;
+                var paths = new List<string>();
+                foreach (var text in texts)
+                {
+                    if (paths.Count >= 8) { paths.Add("..."); break; }
+                    var path = text.name;
+                    for (var t = text.transform.parent; t != null && t != prefab.transform; t = t.parent)
+                        path = t.name + "/" + path;
+                    paths.Add(path);
+                }
+                Debug.LogWarning($"[Auga] Prefab '{prefab.name}' uses classic UI Text on {texts.Length} object(s); convert them to TextMeshPro: {string.Join(", ", paths)}");
+            }
+            if (offenders > 0)
+                Debug.LogWarning($"[Auga] {offenders} bundled prefab(s) still use classic UI Text (see the warnings above).");
+        }
+
+        private static void RemoveSelectSfx(params GameObject[] prefabs)
+        {
+            foreach (var prefab in prefabs)
+            {
+                if (prefab == null)
+                    continue;
+                foreach (var sfx in prefab.GetComponentsInChildren<ButtonSfx>(true))
+                {
+                    sfx.m_selectSfxPrefab = null;
+                    sfx.m_selectSfxPrefabVibrationOnly = null;
+                }
+            }
         }
 
         private static void ApplyCursor()
@@ -624,8 +654,14 @@ namespace Auga
                 return AssetBundle.LoadFromFile(assetBundlePath);
             }
 
-            var assembly = Assembly.GetCallingAssembly();
-            var assetBundle = AssetBundle.LoadFromStream(assembly.GetManifestResourceStream($"{assembly.GetName().Name}.{filename}"));
+            var assembly = typeof(Auga).Assembly;   // not GetCallingAssembly(): see LoadDependencies
+            var stream = assembly.GetManifestResourceStream($"{assembly.GetName().Name}.{filename}");
+            if (stream == null)
+            {
+                LogError($"Could not load the embedded asset bundle ({filename}); no such resource in {assembly.GetName().Name}.");
+                return null;
+            }
+            var assetBundle = AssetBundle.LoadFromStream(stream);
 
             return assetBundle;
         }
@@ -653,28 +689,37 @@ namespace Auga
             return assetFileName;
         }
 
+        /// <summary>
+        /// Whether a message of this level goes out. Before the config is loaded (the dependency loading in Awake
+        /// runs first) warnings and errors always do; a failure there used to throw inside the logger itself and
+        /// hide the real problem.
+        /// </summary>
+        private static bool ShouldLog(LogLevel level)
+        {
+            if (_loggingEnabled == null || _logLevel == null)
+                return level == LogLevel.Warning || level == LogLevel.Error;
+            return _loggingEnabled.Value && _logLevel.Value <= level;
+        }
+
         public static void Log(string message)
         {
-            if (_loggingEnabled.Value && _logLevel.Value <= LogLevel.Info)
-            {
-                _instance.Logger.LogInfo(message);
-            }
+            if (!ShouldLog(LogLevel.Info)) return;
+            if (_instance != null && _instance.Logger != null) _instance.Logger.LogInfo(message);
+            else Debug.Log($"[Auga] {message}");
         }
 
         public static void LogWarning(string message)
         {
-            if (_loggingEnabled.Value && _logLevel.Value <= LogLevel.Warning)
-            {
-                _instance.Logger.LogWarning(message);
-            }
+            if (!ShouldLog(LogLevel.Warning)) return;
+            if (_instance != null && _instance.Logger != null) _instance.Logger.LogWarning(message);
+            else Debug.LogWarning($"[Auga] {message}");
         }
 
         public static void LogError(string message)
         {
-            if (_loggingEnabled.Value && _logLevel.Value <= LogLevel.Error)
-            {
-                _instance.Logger.LogError(message);
-            }
+            if (!ShouldLog(LogLevel.Error)) return;
+            if (_instance != null && _instance.Logger != null) _instance.Logger.LogError(message);
+            else Debug.LogError($"[Auga] {message}");
         }
 
         [UsedImplicitly]
@@ -709,15 +754,6 @@ namespace Auga
                     staminaBar.ShowTicks = StaminaBarShowTicks.Value;
                 }
 
-                var newAdrenalinePanel = Hud.instance.transform.Find("hudroot/AdrenalineBar");
-                if (newAdrenalinePanel != null && newAdrenalinePanel.GetComponent<AugaHealthBar>() is AugaHealthBar adrenalineBar)
-                {
-                    adrenalineBar.Hide = !AdrenalineBarShow.Value;
-                    adrenalineBar.TextDisplay = (AugaHealthBar.TextDisplayMode)Auga.AdrenalineBarTextDisplay.Value;
-                    adrenalineBar.DisplayTextPosition = (AugaHealthBar.TextPosition)Auga.AdrenalineBarTextPosition.Value;
-                    adrenalineBar.ShowTicks = false;
-                }
-
                 if (newEitrPanel != null && newEitrPanel.GetComponent<AugaHealthBar>() is AugaHealthBar eitrBar)
                 {
                     eitrBar.Hide = !EitrBarShow.Value;
@@ -739,11 +775,7 @@ namespace Auga
             {
                 var t = typeof(Player).GetField(nameof(Player.m_knownBiome),
                     BindingFlags.Instance | BindingFlags.NonPublic);
-                // Valheim 1.0 port: known biomes are keyed by BiomeSector name now.
-                if (t != null && Player.m_localPlayer != null)
-                {
-                    t.SetValue(Player.m_localPlayer, new HashSet<string>());
-                }
+                t.SetValue(Player.m_localPlayer,new HashSet<Heightmap.Biome>());
             });
         }
     }

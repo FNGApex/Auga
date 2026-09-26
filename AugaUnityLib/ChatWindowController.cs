@@ -1,4 +1,4 @@
-using TMPro;
+﻿using TMPro;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
@@ -20,8 +20,8 @@ namespace AugaUnity
 
         private void Update()
         {
-            if (ZInput.GetMouseButtonDown(0) || ZInput.GetMouseButton(1) ||
-                ZInput.GetKeyDown(KeyCode.Escape) || ZInput.GetButtonDown("JoyButtonB") ||
+            if (Input.GetKeyDown(KeyCode.Mouse0) || Input.GetKey(KeyCode.Mouse1) ||
+                Input.GetKeyDown(KeyCode.Escape) || ZInput.GetButtonDown("JoyButtonB") ||
                 ZInput.GetButtonDown("JoyLStickLeft") || ZInput.GetButtonDown("JoyLStickRight") ||
                 ZInput.GetButtonDown("JoyLStickUp") || ZInput.GetButtonDown("JoyLStickDown"))
             {

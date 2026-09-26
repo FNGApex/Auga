@@ -1,80 +1,161 @@
+﻿using Auga.Utilities;
+using System.Linq;
 using AugaUnity;
 using HarmonyLib;
-using TMPro;
 using UnityEngine;
-using UnityEngine.UI;
 
 namespace Auga
 {
     [HarmonyPatch]
     public static class MessageHud_Setup
     {
+        /// <summary>
+        /// Replaces the vanilla message HUD ("HudMessage") with the Auga one. The Auga prefab still has the old
+        /// two-object layout (an "AugaMessageHud" root carrying the MessageHud component and a separate
+        /// "TopLeftMessage" panel with the message log); "HudMessage" is its own root Canvas now and has no
+        /// "TopLeftMessage" sibling anymore, so both pieces are placed under a new root canvas here.
+        /// </summary>
         [HarmonyPatch(typeof(MessageHud), nameof(MessageHud.Awake))]
         [HarmonyPrefix]
         public static bool MessageHud_Awake_Prefix(MessageHud __instance)
         {
-            return !SetupHelper.IndirectTwoObjectReplace(__instance.transform, Auga.Assets.MessageHud, "HudMessage", "TopLeftMessage", "AugaMessageHud");
+            if (__instance.name.StartsWith("Auga") || __instance.name != "HudMessage" || !Auga.Assets.MessageHud)
+            {
+                return true;
+            }
+
+            var vanilla = __instance.transform;
+            var parent = vanilla.parent;
+            var siblingIndex = vanilla.GetSiblingIndex();
+            var canvasSettings = SetupHelper.CaptureRootCanvas(vanilla.gameObject);
+
+            var prefabInstance = Object.Instantiate(Auga.Assets.MessageHud, parent);
+            var primary = prefabInstance.transform.Find("AugaMessageHud");
+            var topLeft = prefabInstance.transform.Find("TopLeftMessage");
+            if (primary == null || primary.GetComponent<MessageHud>() == null)
+            {
+                Auga.LogWarning("Auga message HUD prefab has no AugaMessageHud/MessageHud; keeping the vanilla one.");
+                Object.Destroy(prefabInstance);
+                return true;
+            }
+
+            primary.SetParent(parent, false);
+            primary.SetSiblingIndex(siblingIndex);
+            var newHud = primary.GetComponent<MessageHud>();
+            SerializedFieldHelper.CopyMissingFields(newHud, __instance, primary);
+            SetupHelper.ApplyRootCanvas(primary.gameObject, canvasSettings);
+            if (topLeft != null)
+            {
+                // vanilla draws the message log behind the inventory (its own TopLeftMessage canvas at sorting
+                // order 500, the inventory at 600) and only the centre messages above it (HudMessage, 1000). The
+                // Auga log therefore lives in the vanilla TopLeftMessage canvas, emptied of the vanilla placeholder.
+                var vanillaLog = parent.Find("TopLeftMessage");
+                if (vanillaLog != null)
+                {
+                    // The vanilla placeholder stays, inactive, as the first child: the Auga element is the template
+                    // every log entry is cloned from, and its AugaTopLeftMessage treats sibling 0 as the oldest entry,
+                    // fading and destroying it. Destroying the placeholder made the template itself sibling 0.
+                    foreach (var child in vanillaLog.Cast<Transform>().ToList())
+                        child.gameObject.SetActive(false);
+                    if (vanillaLog.childCount == 0)
+                    {
+                        var placeholder = new GameObject("Placeholder", typeof(RectTransform));
+                        placeholder.transform.SetParent(vanillaLog, false);
+                        placeholder.SetActive(false);
+                    }
+                    topLeft.SetParent(vanillaLog, false);
+                    topLeft.SetAsLastSibling();
+                }
+                else
+                {
+                    var canvasRoot = primary.GetComponentInParent<Canvas>();
+                    topLeft.SetParent(canvasRoot != null ? canvasRoot.transform : primary, false);
+                }
+            }
+            Object.Destroy(prefabInstance);
+
+            vanilla.SetParent(null);
+            Object.Destroy(vanilla.gameObject);
+            return false;
+        }
+
+        /// <summary>
+        /// Vanilla draws the top-left pickup message in a separate root canvas ("TopLeftMessage", next to
+        /// "HudMessage") that only the vanilla MessageHud references. That instance is replaced above before its
+        /// Start() could fade the placeholder out, so the prefab's sample text ("You picked up an Axe" with a helmet
+        /// icon) would stay on screen forever. The canvas normally hosts the Auga log now (see the Awake prefix);
+        /// a vanilla TopLeftMessage canvas that still holds nothing of Auga's is dropped.
+        /// </summary>
+        [HarmonyPatch(typeof(MessageHud), nameof(MessageHud.Start))]
+        [HarmonyPostfix]
+        public static void MessageHud_Start_Postfix(MessageHud __instance)
+        {
+            if (__instance == null || !__instance.name.StartsWith("Auga") || __instance.transform.parent == null)
+                return;
+
+            var vanillaTopLeft = __instance.transform.parent.Find("TopLeftMessage");
+            if (vanillaTopLeft != null && !vanillaTopLeft.IsChildOf(__instance.transform)
+                && vanillaTopLeft.GetComponentInChildren<AugaTopLeftMessage>(true) == null
+                && vanillaTopLeft.GetComponentInChildren<AugaTopLeftMessageController>(true) == null)
+            {
+                Auga.Log("Removing the vanilla TopLeftMessage canvas; the Auga message HUD has its own log.");
+                Object.Destroy(vanillaTopLeft.gameObject);
+            }
         }
 
         [HarmonyPatch(typeof(MessageHud), nameof(MessageHud.Awake))]
         [HarmonyPostfix]
         public static void MessageHud_Awake_Postfix(MessageHud __instance)
         {
-            if (__instance == null)
+            if (__instance == null || !__instance.name.StartsWith("Auga"))
                 return;
 
             var controller = __instance.GetComponent<AugaTopLeftMessageController>();
-            if (controller)
+            if (controller && controller.LogContainer != null && controller.LogContainer.parent != null)
                 controller.LogContainer.parent.gameObject.AddComponent<MovableHudElement>().Init(TextAnchor.UpperLeft, 55, -115);
-            __instance.m_messageCenterText.gameObject.AddComponent<MovableHudElement>().Init(TextAnchor.MiddleCenter, 0, 150);
+            if (__instance.m_messageCenterText != null)
+                __instance.m_messageCenterText.gameObject.AddComponent<MovableHudElement>().Init(TextAnchor.MiddleCenter, 0, 150);
+        }
 
-            // AUDIT2 text-5: 1.0 puts the item / station name in UnlockDescription, which Auga styles as a faint 20pt grey
-            // parenthetical with an auto-size floor of 1 over a 56% backdrop. Lift it (in the loaded prefab, so every instance).
-            var unlock = __instance.m_unlockMsgPrefab;
-            if (unlock != null)
+        /// <summary>
+        /// MessageHud.OnDestroy clears the static instance unconditionally; the vanilla object is destroyed one
+        /// frame after the Auga one claimed the instance, which would leave MessageHud.instance null.
+        /// </summary>
+        [HarmonyPatch(typeof(MessageHud), nameof(MessageHud.OnDestroy))]
+        public static class MessageHud_OnDestroy_Patch
+        {
+            public static void Prefix(MessageHud __instance, out MessageHud __state)
             {
-                var description = unlock.transform.Find("UnlockMessage/UnlockDescription")?.GetComponent<TMP_Text>();
-                if (description != null)
-                {
-                    description.color = new Color(0.84f, 0.81f, 0.78f, 1f);
-                    if (description.enableAutoSizing && description.fontSizeMin < 16f)
-                        description.fontSizeMin = 16f;
-                }
-
-                var backdrop = unlock.transform.Find("UnlockMessage/bkg")?.GetComponent<Image>();
-                if (backdrop != null && backdrop.color.a < 0.75f)
-                    backdrop.color = new Color(backdrop.color.r, backdrop.color.g, backdrop.color.b, 0.8f);
+                var current = MessageHud.instance;
+                __state = current != null && current != __instance ? current : null;
             }
 
-            // AUDIT2 text-6: the biome banner clip fades a CanvasGroup on 'Title', which Auga's prefab lacks, so the name
-            // popped in and out at full alpha. Add the component before the Animator binds (it binds on instantiate).
-            var biomeTitle = __instance.m_biomeFoundPrefab != null ? __instance.m_biomeFoundPrefab.transform.Find("UnlockMessage/Title") : null;
-            if (biomeTitle != null && biomeTitle.GetComponent<CanvasGroup>() == null)
-                biomeTitle.gameObject.AddComponent<CanvasGroup>();
+            public static void Postfix(MessageHud __state)
+            {
+                if (__state != null && MessageHud.instance == null)
+                {
+                    MessageHud.m_instance = __state;
+                }
+            }
         }
 
         [HarmonyPatch(typeof(MessageHud), nameof(MessageHud.ShowMessage))]
         [HarmonyPostfix]
-        public static void MessageHud_ShowMessage_Postfix(MessageHud __instance, MessageHud.MessageType type, string text, int amount, Sprite icon, bool showDespiteHiddenHUD)
+        public static void MessageHud_ShowMessage_Postfix(MessageHud __instance, MessageHud.MessageType type, string text, int amount, Sprite icon)
         {
-            // Valheim 1.0 port (text-chat-6): 1.0 added showDespiteHiddenHUD; vanilla only drops the message when the HUD is
-            // user-hidden and that flag is false, so honour it the same way.
-            if (Hud.IsUserHidden() && !showDespiteHiddenHUD)
+            if (Hud.IsUserHidden())
             {
                 return;
             }
 
+            text = Localization.instance.Localize(text);
             if (type == MessageHud.MessageType.TopLeft)
             {
-                // Valheim 1.0 port (text-chat-6): degrade instead of throwing if the TopLeftMessage replacement did not run.
                 var controller = __instance.GetComponent<AugaTopLeftMessageController>();
-                if (controller == null)
+                if (controller != null)
                 {
-                    return;
+                    controller.AddMessage(text, icon, amount);
                 }
-
-                text = Localization.instance.Localize(text);
-                controller.AddMessage(text, icon, amount);
             }
         }
     }

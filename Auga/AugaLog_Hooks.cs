@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using AugaUnity;
 using HarmonyLib;
 using UnityEngine;
@@ -10,7 +10,7 @@ namespace Auga
     {
         public static void Postfix(Game __instance)
         {
-            if (__instance.m_firstSpawn)
+            if (__instance.m_playerProfile.m_firstSpawn)
             {
                 AugaMessageLog.instance.AddArrivalLog(Player.m_localPlayer);
             }
@@ -77,19 +77,10 @@ namespace Auga
     {
         public static bool Prefix(Player __instance)
         {
-            // Valheim 1.0 port (harmony-10): vanilla returns early without a Game instance; mirror it.
-            if (Game.instance == null || ObjectDB.instance == null)
-            {
-                return true;
-            }
-
-            var currentSeason = __instance.m_currentSeason;
             var newRecipes = new List<Recipe>();
             foreach (var recipe in ObjectDB.instance.m_recipes)
             {
-                // Valheim 1.0 port (harmony-10): mirror 1.0's conditions - seasonal recipes count as enabled, and skip recipes with a null m_item.
-                var seasonal = currentSeason != null && currentSeason.Recipes.Contains(recipe);
-                if ((recipe.m_enabled || seasonal) && recipe.m_item != null && !__instance.m_knownRecipes.Contains(recipe.m_item.m_itemData.m_shared.m_name) && __instance.HaveRequirements(recipe, true, 0))
+                if (recipe.m_enabled && !__instance.m_knownRecipes.Contains(recipe.m_item.m_itemData.m_shared.m_name) && __instance.HaveRequirements(recipe, true, 0))
                 {
                     newRecipes.Add(recipe);
                 }
@@ -108,9 +99,7 @@ namespace Auga
                 foreach (var gameObject in pieceTable.m_pieces)
                 {
                     var piece = gameObject.GetComponent<Piece>();
-                    // Valheim 1.0 port (harmony-10): seasonal pieces count as enabled, as in 1.0's UpdateKnownRecipesList.
-                    var seasonal = currentSeason != null && currentSeason.Pieces.Contains(gameObject);
-                    if (piece != null && (piece.m_enabled || seasonal) && !__instance.m_knownRecipes.Contains(piece.m_name) && __instance.HaveRequirements(piece, Player.RequirementMode.IsKnown))
+                    if (piece.m_enabled && !__instance.m_knownRecipes.Contains(piece.m_name) && __instance.HaveRequirements(piece, Player.RequirementMode.IsKnown))
                     {
                         newPieces.Add(piece);
                     }
@@ -145,12 +134,9 @@ namespace Auga
     {
         public static bool Prefix(Player __instance, BiomeSector biome)
         {
-            // Valheim 1.0 port (harmony-15): 1.0 keys known biomes by sector name (alt-biome sectors have their own name) and
-            // suppresses the plain Meadows/None discovery; log the sector name under the same condition vanilla shows its banner.
-            if (biome != null && !__instance.IsBiomeKnown(biome)
-                && ((biome.Biome != Heightmap.Biome.Meadows && biome.Biome != Heightmap.Biome.None) || biome.AltBiomes.Count > 0))
+            if (!__instance.m_knownBiome.Contains(biome.GetName()))
             {
-                AugaMessageLog.instance.AddNewBiomeLog(biome.GetName(), biome.Biome);
+                AugaMessageLog.instance.AddNewBiomeLog(biome.Biome);
             }
 
             return true;
@@ -172,70 +158,43 @@ namespace Auga
         }
     }
 
-    // Valheim 1.0 port (harmony-11): the old prefix copied DoCrafting's eligibility checks, which drifted from 1.0 (upgrader
-    // stations, NoCraftCost, multicraft, CanAddItem, requireOnlyOneIngredient), so some crafts were never logged. Log from the
-    // actual outcome instead: compare the inventory before and after vanilla runs.
     [HarmonyPatch(typeof(InventoryGui), nameof(InventoryGui.DoCrafting))]
     public static class InventoryGui_DoCrafting_Patch
     {
-        public class CraftState
+        public static bool Prefix(InventoryGui __instance, Player player)
         {
-            public Recipe Recipe;
-            public ItemDrop.ItemData UpgradeItem;
-            public int UpgradeQuality;
-            public int CountBefore;
-        }
-
-        public static void Prefix(InventoryGui __instance, Player player, out CraftState __state)
-        {
-            __state = null;
-            var recipe = __instance.m_craftRecipe;
-            if (recipe == null || recipe.m_item == null || player == null)
+            if (__instance.m_craftRecipe == null)
             {
-                return;
+                return true;
             }
 
-            var upgradeItem = __instance.m_craftUpgradeItem;
-            __state = new CraftState
+            var quality = __instance.m_craftUpgradeItem?.m_quality + 1 ?? 1;
+            if (quality > __instance.m_craftRecipe.m_item.m_itemData.m_shared.m_maxQuality 
+                || !player.HaveRequirements(__instance.m_craftRecipe, false, quality) 
+                && !player.NoCostCheat() 
+                || (__instance.m_craftUpgradeItem != null 
+                    && !player.GetInventory().ContainsItem(__instance.m_craftUpgradeItem) 
+                    || __instance.m_craftUpgradeItem == null 
+                    && !player.GetInventory().HaveEmptySlot()))
             {
-                Recipe = recipe,
-                UpgradeItem = upgradeItem,
-                UpgradeQuality = upgradeItem?.m_quality ?? 0,
-                CountBefore = upgradeItem == null ? player.GetInventory().CountItems(recipe.m_item.m_itemData.m_shared.m_name, -1, false) : 0
-            };
-        }
-
-        public static void Postfix(Player player, CraftState __state)
-        {
-            if (__state == null || player == null || AugaMessageLog.instance == null)
-            {
-                return;
+                return true;
             }
 
-            var inventory = player.GetInventory();
-            if (__state.UpgradeItem != null)
+            if (__instance.m_craftRecipe.m_item.m_itemData.m_shared.m_dlc.Length > 0 && !DLCMan.instance.IsDLCInstalled(__instance.m_craftRecipe.m_item.m_itemData.m_shared.m_dlc))
             {
-                // Upgrades replace the item in the same slot; log only when the quality actually went up (upgrader stations can fail or break it).
-                if (inventory.ContainsItem(__state.UpgradeItem))
-                {
-                    return;
-                }
-
-                var pos = __state.UpgradeItem.m_gridPos;
-                var upgraded = inventory.GetItemAt(pos.x, pos.y);
-                if (upgraded != null && upgraded.m_shared.m_name == __state.UpgradeItem.m_shared.m_name && upgraded.m_quality > __state.UpgradeQuality)
-                {
-                    AugaMessageLog.instance.AddUpgradeItemLog(upgraded, upgraded.m_quality);
-                }
-
-                return;
+                return true;
             }
 
-            var crafted = inventory.CountItems(__state.Recipe.m_item.m_itemData.m_shared.m_name, -1, false) - __state.CountBefore;
-            if (crafted > 0)
+            if (__instance.m_craftUpgradeItem != null)
             {
-                AugaMessageLog.instance.AddCraftItemLog(__state.Recipe, crafted);
+                AugaMessageLog.instance.AddUpgradeItemLog(__instance.m_craftUpgradeItem, quality);
             }
+            else
+            {
+                AugaMessageLog.instance.AddCraftItemLog(__instance.m_craftRecipe);
+            }
+
+            return true;
         }
     }
 

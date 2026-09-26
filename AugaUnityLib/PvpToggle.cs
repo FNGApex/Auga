@@ -1,3 +1,4 @@
+﻿using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -8,7 +9,7 @@ namespace AugaUnity
         public GameObject Enabled;
         public GameObject Disabled;
         public GameObject Inactive;
-        public Text PleaseWaitText;
+        public TMP_Text PleaseWaitText;
 
         public void Awake()
         {
@@ -24,7 +25,7 @@ namespace AugaUnity
             Inactive.SetActive(!canTogglePvp);
             Enabled.SetActive(canTogglePvp && player.m_pvp);
             Disabled.SetActive(canTogglePvp && !player.m_pvp);
-            if (Inactive.activeSelf && PleaseWaitText != null)
+            if (Inactive.activeSelf)
             {
                 PleaseWaitText.text = $"{Localization.instance.Localize("$pvp_wait_text")}: {10 - player.m_lastCombatTimer:0}";
             }

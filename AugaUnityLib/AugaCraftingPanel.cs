@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using GUIFramework;
 using JetBrains.Annotations;
@@ -67,7 +67,6 @@ namespace AugaUnity
         private CraftingRequirementsPanel _currentPanel;
         private Action<bool> _onShowCustomVariantDialog;
         private bool _multiCraftEnabled;
-        private int _craftMultiplier = 1;
 
         private void Awake()
         {
@@ -122,53 +121,14 @@ namespace AugaUnity
 
             var inventoryGui = InventoryGui.instance;
             _currentPanel = panel;
-            // Valheim 1.0 port (#100): Activate first so ItemInfo.Icon points at the new panel before SetRecipe writes the
-            // icon (it used to land on the previous panel), and SetRecipe now sets the icon even when ItemData is null.
+            if (inventoryGui?.m_selectedRecipe.ItemData?.GetIcon() != null)
+            {
+                _currentPanel.Icon.sprite = inventoryGui.m_selectedRecipe.ItemData.GetIcon();
+            }
+            SetRecipe(inventoryGui.m_selectedRecipe.Recipe, inventoryGui.m_selectedRecipe.ItemData, inventoryGui.m_selectedVariant);
             panel.gameObject.SetActive(true);
             panel.Activate(inventoryGui, ItemInfo);
-            SetRecipe(inventoryGui.m_selectedRecipe.Recipe, inventoryGui.m_selectedRecipe.ItemData, inventoryGui.m_selectedVariant);
-            panel.Update();
-        }
-
-        // Valheim 1.0 port (#100): same sprite vanilla puts in m_recipeIcon (UpdateRecipe), for owned items and plain recipes
-        // alike. ComplexTooltip.SetItem skips repeat calls, so it cannot be relied on to refresh a newly activated panel.
-        private void UpdatePanelIcon(Recipe recipe, ItemDrop.ItemData item, int variant)
-        {
-            if (_currentPanel == null || _currentPanel.Icon == null || recipe == null)
-            {
-                return;
-            }
-
-            var icons = recipe.m_item.m_itemData.m_shared.m_icons;
-            var index = item?.m_variant ?? variant;
-            Sprite sprite = null;
-            if (icons != null && icons.Length > 0)
-            {
-                sprite = icons[Mathf.Clamp(index, 0, icons.Length - 1)];
-            }
-
-            if (sprite != null)
-            {
-                _currentPanel.Icon.sprite = sprite;
-            }
-        }
-
-        // Valheim 1.0 port (crafting-10): vanilla appends " x{recipe amount * multi-craft amount}" to m_recipeName for
-        // stacking recipes (InventoryGui.UpdateRecipe); Auga's visible name is the ComplexTooltip topic.
-        private void UpdateItemInfoTopic(Recipe recipe, ItemDrop.ItemData item)
-        {
-            // Like vanilla, only stacking recipes get the suffix; others keep whatever ComplexTooltip.SetItem wrote.
-            if (recipe == null || item != null || recipe.m_amount <= 1 || TabController.SelectedIndex > 1 || ItemInfo == null || ItemInfo.Topic == null)
-            {
-                return;
-            }
-
-            var topic = $"{Localization.instance.Localize(recipe.m_item.m_itemData.m_shared.m_name)} x{recipe.m_amount * Mathf.Max(1, _craftMultiplier)}";
-
-            if (ItemInfo.Topic.text != topic)
-            {
-                ItemInfo.SetTopic(topic);
-            }
+            
         }
 
         [UsedImplicitly]
@@ -200,22 +160,14 @@ namespace AugaUnity
             {
                 if (item != null)
                 {
-                    // Valheim 1.0: an upgrader station may take an item past m_maxQuality, so only clamp elsewhere.
-                    var station = Player.m_localPlayer != null ? Player.m_localPlayer.GetCurrentCraftingStation() : null;
-                    var quality = station != null && station.m_upgrader
-                        ? item.m_quality + 1
-                        : Mathf.Min(item.m_quality + 1, item.m_shared.m_maxQuality);
-                    // Valheim 1.0 port (#100): an owned item keeps its own variant (vanilla: itemData?.m_variant ?? m_selectedVariant);
-                    // the upgrade tab used to get this from a per-frame SetRecipe call.
-                    ItemInfo.SetItem(item, quality, item.m_variant);
+                    var quality = Mathf.Min(item.m_quality + 1, item.m_shared.m_maxQuality);
+                    ItemInfo.SetItem(item, quality, variant);
                 }
                 else
                 {
                     ItemInfo.SetItem(recipe.m_item.m_itemData, 1, variant);
                 }
                 ItemInfo.gameObject.SetActive(true);
-                UpdatePanelIcon(recipe, item, variant);
-                UpdateItemInfoTopic(recipe, item);
             }
 
             VariantDialog.OnClose();
@@ -227,12 +179,7 @@ namespace AugaUnity
             if (instance.m_craftTimer >= 0)
             {
                 CraftProgressBar.gameObject.SetActive(true);
-                // Valheim 1.0: the duration depends on multi-craft, upgrader stations and skill. Vanilla has just
-                // written duration and timer into its own (hidden) progress bar, so read the ratio from there.
-                var vanillaBar = instance.m_craftProgressBar;
-                var percent = vanillaBar != null && vanillaBar.m_maxValue > 0f
-                    ? Mathf.Clamp01(vanillaBar.m_value / vanillaBar.m_maxValue)
-                    : instance.m_craftTimer / instance.m_craftDuration;
+                var percent = instance.m_craftTimer / instance.m_craftDuration;
                 CraftProgressBar.fillAmount = percent;
             }
 
@@ -255,52 +202,72 @@ namespace AugaUnity
             RequirementsContainer.SetActive(hasRecipe && !showingVariants);
         }
 
-        public virtual bool HaveRequirementsHelper(Player player, Piece.Requirement[] requirements, int qualityLevel, int craftMultiplier = 1)
+        /// <summary>
+        /// Vanilla's item check for the given requirements: the amount for the quality times the craft multiplier,
+        /// counted per quality level as the game does (a craft consumes items of a single quality).
+        /// </summary>
+        public virtual bool HaveRequirementsHelper(Player player, Piece.Requirement[] requirements, int qualityLevel, int amount = 1)
         {
             foreach (var resource in requirements)
             {
-                if (resource.m_resItem)
-                {
-                    var amount = resource.GetAmount(qualityLevel) * Mathf.Max(1, craftMultiplier);
-                    var num = player.m_inventory.CountItems(resource.m_resItem.m_itemData.m_shared.m_name);
-                    if (num < amount)
-                        return false;
-                }
+                if (resource.m_resItem == null)
+                    continue;
+                var need = resource.GetAmount(qualityLevel) * amount;
+                if (CountAtBestQuality(player, resource) < need)
+                    return false;
             }
             return true;
         }
 
-        /// <param name="craftMultiplier">Valheim 1.0 multi-craft amount.</param>
-        /// <param name="requirements">The list vanilla just built (upgrader-resource and one-ingredient filtering applied); null = all of the recipe's.</param>
-        public virtual void PostSetupRequirementList(Recipe recipe, ItemDrop.ItemData item, int quality, Player player, bool allowedWorkbenchQuality, int craftMultiplier = 1, IList<Piece.Requirement> requirements = null)
+        private static int CountAtBestQuality(Player player, Piece.Requirement resource)
         {
-            // Valheim 1.0 port (crafting-10): remember the multi-craft amount for the item-info topic, and preview the
-            // whole batch's value/weight like vanilla (stackOverride = recipe amount x multi-craft amount).
-            _craftMultiplier = Mathf.Max(1, craftMultiplier);
-            if (ItemInfo != null)
+            var shared = resource.m_resItem.m_itemData.m_shared;
+            var best = 0;
+            for (var level = 1; level <= shared.m_maxQuality; level++)
             {
-                ItemInfo.SetStackOverride(item == null && recipe != null && TabController.SelectedIndex <= 1 ? recipe.m_amount * _craftMultiplier : -1);
+                best = Mathf.Max(best, player.m_inventory.CountItems(shared.m_name, level));
             }
-            UpdateItemInfoTopic(recipe, item);
+            return best;
+        }
 
+        /// <summary>
+        /// The requirements vanilla just put into the slots (InventoryGui.SetupRequirementList): it leaves out
+        /// upgrader-only materials at a normal station and the reverse, and for a recipe that needs only one of
+        /// its ingredients it lists the known ones. Falls back to the recipe's own list when the game's is not for
+        /// this recipe.
+        /// </summary>
+        protected virtual List<Piece.Requirement> DisplayedRequirements(Recipe recipe, int quality)
+        {
+            var inventoryGui = InventoryGui.instance;
+            if (inventoryGui != null && inventoryGui.m_reqList != null && inventoryGui.m_selectedRecipe.Recipe == recipe)
+            {
+                return inventoryGui.m_reqList;
+            }
+            var list = new List<Piece.Requirement>();
+            foreach (var resource in recipe.m_resources)
+            {
+                if (resource.m_resItem != null && resource.GetAmount(quality) > 0)
+                {
+                    list.Add(resource);
+                }
+            }
+            return list;
+        }
+
+        public virtual void PostSetupRequirementList(Recipe recipe, ItemDrop.ItemData item, int quality, Player player, bool allowedWorkbenchQuality, int amount = 1)
+        {
             if (TabController.SelectedIndex == 1 && item != null)
             {
-                // Valheim 1.0 port (crafting-5): an upgrader station (vanilla's Forge of Potential) lists max-quality items
-                // and upgrades them past m_maxQuality, so the "cannot go higher" panel is only for other stations.
-                var station = player != null ? player.GetCurrentCraftingStation() : null;
-                var atUpgrader = station != null && station.m_upgrader;
-                var maxQuality = item.m_quality >= item.m_shared.m_maxQuality && !atUpgrader;
+                var maxQuality = item.m_shared.m_maxQuality == item.m_quality;
                 if (maxQuality)
                 {
-                    // Valheim 1.0 port (#100): only switch panels on a change; re-activating every frame re-ran SetRecipe
-                    // and toggled the panel off and on.
-                    if (_currentPanel != MaxQualityUpgradeRequirementsPanel)
-                        ActivatePanel(MaxQualityUpgradeRequirementsPanel);
+                    ActivatePanel(MaxQualityUpgradeRequirementsPanel);
                     return;
                 }
-                else if (_currentPanel != UpgradeRequirementsPanel)
+                else
                 {
                     ActivatePanel(UpgradeRequirementsPanel);
+                    SetRecipe(recipe, item, item.m_variant);
                 }
             }
 
@@ -311,23 +278,38 @@ namespace AugaUnity
 
             var canCraft = allowedWorkbenchQuality;
             var states = new List<WireState>();
-            var index = 0;
+            var wireCount = _currentPanel.WireFrame.Wires.Length;
             if (allowedWorkbenchQuality)
             {
-                foreach (var resource in requirements ?? (IList<Piece.Requirement>)recipe.m_resources)
+                var requirements = DisplayedRequirements(recipe, quality);
+                var haves = new List<bool>(requirements.Count);
+                var anyHave = false;
+                var allHave = true;
+                foreach (var resource in requirements)
                 {
-                    var amountRequired = resource.GetAmount(quality);
-                    if (resource.m_resItem != null && amountRequired > 0)
-                    {
-                        var have = HaveRequirementsHelper(player, new[] { resource }, quality, craftMultiplier);
-                        states.Add(have ? WireState.Have : WireState.DontHave);
-                        canCraft = canCraft && have;
-                        ++index;
-                    }
+                    var have = HaveRequirementsHelper(player, new[] { resource }, quality, amount);
+                    haves.Add(have);
+                    anyHave |= have;
+                    allHave &= have;
                 }
+
+                // more requirements than slots: vanilla shows a rotating window of them, the wires follow it
+                var first = 0;
+                if (requirements.Count > wireCount && wireCount > 0)
+                {
+                    first = (int)Time.fixedTime % Mathf.CeilToInt((float)requirements.Count / wireCount) * wireCount;
+                }
+                // a recipe that needs only one of its ingredients is craftable with any of them; the others are
+                // then absent rather than missing
+                var onlyOne = recipe.m_requireOnlyOneIngredient;
+                for (var k = first; k < haves.Count && states.Count < wireCount; k++)
+                {
+                    states.Add(haves[k] ? WireState.Have : onlyOne && anyHave ? WireState.Absent : WireState.DontHave);
+                }
+                canCraft = canCraft && (onlyOne ? anyHave : allHave);
             }
 
-            for (; index < _currentPanel.WireFrame.Wires.Length; ++index)
+            while (states.Count < wireCount)
             {
                 states.Add(WireState.Absent);
             }
@@ -396,34 +378,6 @@ namespace AugaUnity
             else
             {
                 Multicraft.SetActive(_multiCraftEnabled);
-            }
-
-            SyncTabsFromVanilla();
-        }
-
-        // Valheim 1.0 port (crafting-8): a station with m_hasCraftTab = false (vanilla's Forge of Potential) makes
-        // InventoryGui.UpdateCraftingPanel force the upgrade tab and hide the craft tab. Mirror that on Auga's own tabs,
-        // re-checked every frame because AugaTabController.SelectTab is a no-op when the index is unchanged.
-        public virtual void SyncTabsFromVanilla()
-        {
-            var inventoryGui = InventoryGui.instance;
-            var player = Player.m_localPlayer;
-            if (inventoryGui == null || player == null || TabController == null || TabController.TabButtons.Count < 2)
-            {
-                return;
-            }
-
-            var station = player.GetCurrentCraftingStation();
-            var hasCraftTab = station == null || station.m_hasCraftTab;
-            var craftTabButton = TabController.TabButtons[0];
-            if (craftTabButton != null && craftTabButton.gameObject.activeSelf != hasCraftTab)
-            {
-                craftTabButton.gameObject.SetActive(hasCraftTab);
-            }
-
-            if (!hasCraftTab && TabController.SelectedIndex == 0 && inventoryGui.InUpradeTab())
-            {
-                TabController.SelectTab(1);
             }
         }
     }

@@ -1,4 +1,4 @@
-using JetBrains.Annotations;
+﻿using JetBrains.Annotations;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -22,12 +22,8 @@ namespace AugaUnity
             inventoryGui.m_recipeRequirementList = RequirementList;
             itemInfo.Icon = Icon;
             ColorUtility.TryParseHtmlString("#EAE1D9", out inventoryGui.m_minStationLevelBasecolor);
-            // The generic panel handed to API workbench tabs has neither; 1.0 dereferences both every frame, so keep
-            // whatever the last real panel assigned.
-            if (WorkbenchLevel != null)
-                inventoryGui.m_minStationLevelText = WorkbenchLevel;
-            if (ItemCraftType != null)
-                inventoryGui.m_itemCraftType = ItemCraftType;
+            inventoryGui.m_minStationLevelText = WorkbenchLevel;
+            inventoryGui.m_itemCraftType = ItemCraftType;
             Update();
         }
 

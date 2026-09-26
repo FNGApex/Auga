@@ -1,16 +1,16 @@
 ManifestFileVersion: 0
 UnityVersion: 6000.0.75f1
-CRC: 3165337189
+CRC: 1732654181
 Hashes:
   AssetFileHash:
     serializedVersion: 2
-    Hash: 3c94d06fb139fd013d24d855cfe5ecf7
+    Hash: 63bf9ae933dd25ac037d358b89da9648
   TypeTreeHash:
     serializedVersion: 2
-    Hash: f7d564ca3b67469be1486f058873f1f2
+    Hash: 01c177455bc5ebe629dd54e281437d89
   IncrementalBuildHash:
     serializedVersion: 2
-    Hash: e358e913c4df4fa26cf341471d081444
+    Hash: db5e8d9e1d627d83060a0fa1efe7017e
 HashAppended: 0
 ClassTypes:
 - Class: 1
@@ -46,11 +46,7 @@ ClassTypes:
 - Class: 114
   Script: {fileID: 11500000, guid: f4688fdb7df04437aeb418b961361dc5, type: 3}
 - Class: 114
-  Script: {fileID: 11500000, guid: 0d0b652f32a2cc243917e4028fa0f046, type: 3}
-- Class: 114
   Script: {fileID: 11500000, guid: dc42784cf147c0c48a680349fa168899, type: 3}
-- Class: 114
-  Script: {fileID: 11500000, guid: 5f7201a12d95ffc409449d95f23cf332, type: 3}
 - Class: 114
   Script: {fileID: 11500000, guid: 1aa08ab6e0800fa44ae55d278d1423e3, type: 3}
 - Class: 114
@@ -94,7 +90,13 @@ ClassTypes:
 - Class: 114
   Script: {fileID: 11500000, guid: d0b148fe25e99eb48b9724523833bab1, type: 3}
 - Class: 114
+  Script: {fileID: -1044321711, guid: 09f9e281558c480b819d293aa7deb0a4, type: 3}
+- Class: 114
   Script: {fileID: 313648218, guid: c1b78fa918b030faf1c1f6f6164daeb2, type: 3}
+- Class: 114
+  Script: {fileID: -817992284, guid: c1b78fa918b030faf1c1f6f6164daeb2, type: 3}
+- Class: 114
+  Script: {fileID: 525475684, guid: c1b78fa918b030faf1c1f6f6164daeb2, type: 3}
 - Class: 114
   Script: {fileID: 1308372393, guid: c1b78fa918b030faf1c1f6f6164daeb2, type: 3}
 - Class: 114
@@ -148,9 +150,9 @@ ClassTypes:
 - Class: 114
   Script: {fileID: 469224316, guid: c1b78fa918b030faf1c1f6f6164daeb2, type: 3}
 - Class: 114
-  Script: {fileID: -1850103303, guid: 045bc81af5d75cb42a79645f3b1c6adb, type: 3}
+  Script: {fileID: -560918846, guid: b5cd06fc9be3c4b458ca2eada68967c7, type: 3}
 - Class: 114
-  Script: {fileID: -1557526246, guid: 045bc81af5d75cb42a79645f3b1c6adb, type: 3}
+  Script: {fileID: -1850103303, guid: 045bc81af5d75cb42a79645f3b1c6adb, type: 3}
 - Class: 114
   Script: {fileID: -7747446, guid: 045bc81af5d75cb42a79645f3b1c6adb, type: 3}
 - Class: 114
@@ -236,8 +238,6 @@ ClassTypes:
 - Class: 114
   Script: {fileID: -13732263, guid: 045bc81af5d75cb42a79645f3b1c6adb, type: 3}
 - Class: 114
-  Script: {fileID: 907649998, guid: 045bc81af5d75cb42a79645f3b1c6adb, type: 3}
-- Class: 114
   Script: {fileID: 1614837281, guid: 045bc81af5d75cb42a79645f3b1c6adb, type: 3}
 - Class: 114
   Script: {fileID: 1132889836, guid: 045bc81af5d75cb42a79645f3b1c6adb, type: 3}
@@ -254,19 +254,21 @@ ClassTypes:
 - Class: 114
   Script: {fileID: -551592535, guid: 045bc81af5d75cb42a79645f3b1c6adb, type: 3}
 - Class: 114
+  Script: {fileID: -1171513903, guid: 045bc81af5d75cb42a79645f3b1c6adb, type: 3}
+- Class: 114
+  Script: {fileID: -1300308537, guid: 045bc81af5d75cb42a79645f3b1c6adb, type: 3}
+- Class: 114
+  Script: {fileID: 1319506116, guid: 045bc81af5d75cb42a79645f3b1c6adb, type: 3}
+- Class: 114
+  Script: {fileID: 907649998, guid: 045bc81af5d75cb42a79645f3b1c6adb, type: 3}
+- Class: 114
   Script: {fileID: -510834432, guid: 045bc81af5d75cb42a79645f3b1c6adb, type: 3}
 - Class: 114
   Script: {fileID: 251365897, guid: 045bc81af5d75cb42a79645f3b1c6adb, type: 3}
 - Class: 114
   Script: {fileID: -1356706394, guid: 045bc81af5d75cb42a79645f3b1c6adb, type: 3}
 - Class: 114
-  Script: {fileID: -1171513903, guid: 045bc81af5d75cb42a79645f3b1c6adb, type: 3}
-- Class: 114
   Script: {fileID: 1789764706, guid: 045bc81af5d75cb42a79645f3b1c6adb, type: 3}
-- Class: 114
-  Script: {fileID: -1300308537, guid: 045bc81af5d75cb42a79645f3b1c6adb, type: 3}
-- Class: 114
-  Script: {fileID: 1319506116, guid: 045bc81af5d75cb42a79645f3b1c6adb, type: 3}
 - Class: 114
   Script: {fileID: 2107124668, guid: 045bc81af5d75cb42a79645f3b1c6adb, type: 3}
 - Class: 114
@@ -300,9 +302,13 @@ ClassTypes:
 - Class: 114
   Script: {fileID: 438561839, guid: d920e4723ba2566674efb2f0c3eb6edb, type: 3}
 - Class: 114
-  Script: {fileID: 1526933710, guid: a7c1e5d29b3f4c60a1d2f0e9b8c7d6a5, type: 3}
-- Class: 114
   Script: {fileID: -1710835243, guid: a9a0be6611ce12a6054c0c76037d55de, type: 3}
+- Class: 114
+  Script: {fileID: -1766770420, guid: 045bc81af5d75cb42a79645f3b1c6adb, type: 3}
+- Class: 114
+  Script: {fileID: 984679904, guid: 045bc81af5d75cb42a79645f3b1c6adb, type: 3}
+- Class: 114
+  Script: {fileID: -1826240452, guid: 045bc81af5d75cb42a79645f3b1c6adb, type: 3}
 - Class: 115
   Script: {instanceID: 0}
 - Class: 128
@@ -340,6 +346,12 @@ SerializeReferenceClassIdentifiers:
   ClassName: TMPro.MarkToMarkAdjustmentRecord
 - AssemblyName: Unity.TextMeshPro
   ClassName: TMPro.TMP_Character
+- AssemblyName: Unity.TextMeshPro
+  ClassName: TMPro.TMP_Dropdown/DropdownEvent
+- AssemblyName: Unity.TextMeshPro
+  ClassName: TMPro.TMP_Dropdown/OptionData
+- AssemblyName: Unity.TextMeshPro
+  ClassName: TMPro.TMP_Dropdown/OptionDataList
 - AssemblyName: Unity.TextMeshPro
   ClassName: TMPro.TMP_FontFeatureTable
 - AssemblyName: Unity.TextMeshPro
@@ -390,14 +402,6 @@ SerializeReferenceClassIdentifiers:
   ClassName: UnityEngine.UI.Button/ButtonClickedEvent
 - AssemblyName: UnityEngine.UI
   ClassName: UnityEngine.UI.ColorBlock
-- AssemblyName: UnityEngine.UI
-  ClassName: UnityEngine.UI.Dropdown/DropdownEvent
-- AssemblyName: UnityEngine.UI
-  ClassName: UnityEngine.UI.Dropdown/OptionData
-- AssemblyName: UnityEngine.UI
-  ClassName: UnityEngine.UI.Dropdown/OptionDataList
-- AssemblyName: UnityEngine.UI
-  ClassName: UnityEngine.UI.FontData
 - AssemblyName: UnityEngine.UI
   ClassName: UnityEngine.UI.MaskableGraphic/CullStateChangedEvent
 - AssemblyName: UnityEngine.UI
@@ -519,32 +523,41 @@ Assets:
 - Assets/Prefabs/AugaTextViewer.prefab
 - Assets/Prefabs/ActiveEffectItem_HUD_Standard.prefab
 - Assets/Prefabs/AugaTextInput.prefab
+- Assets/Prefabs/AugaLogoSmall.prefab
+- Assets/Sprites/MainMenu/status_refresh.png
+- Assets/Sprites/MainMenu/status_unknown.png
 - Assets/Prefabs/ZSFX/sfx_gui_craftitem_cauldron.prefab
 - Assets/Fonts/SourceSansPro-Regular.ttf
+- Assets/Prefabs/LanguageTooltip.prefab
 - Assets/Fonts/SourceSansPro-Bold SDF.asset
+- Assets/Prefabs/LabeledCheckboxLeft.prefab
 - Assets/Prefabs/TabContent_PlayerPanel.prefab
 - Assets/Prefabs/ZSFX/sfx_gui_repairitem_workbench.prefab
+- Assets/Sprites/MainMenu/status.png
 - Assets/Prefabs/TabButton_Skills.prefab
-- Assets/Sprites/ArtPass/AugaRadialCenter.png
 - Assets/Prefabs/DiamondButton.prefab
 - Assets/Fonts/SourceSansPro-Bold SDF-old.asset
 - Assets/Prefabs/ZSFX/sfx_gui_craftitem_end.prefab
 - Assets/Prefabs/ButtonToggle.prefab
 - Assets/Prefabs/AugaSettings.prefab
+- Assets/Prefabs/MainMenu/CharacterPortrait.prefab
 - Assets/Prefabs/AugaMenu.prefab
-- Assets/Prefabs/SkillsElement.prefab
+- Assets/Prefabs/MenuButtonSmall.prefab
 - Assets/Prefabs/MainMenu/WorldListElement.prefab
+- Assets/Prefabs/SkillsElement.prefab
 - Assets/Prefabs/TabButton_MessageLog.prefab
 - Assets/Prefabs/AugaConnecting.prefab
 - Assets/Prefabs/TabButton_PlayerPanel.prefab
 - Assets/Fonts/SourceSansPro-SemiBold.ttf
 - Assets/Prefabs/RecipeElement.prefab
+- Assets/Prefabs/MainMenu/SelectCharacter.prefab
 - Assets/Prefabs/ButtonMedium.prefab
 - Assets/Prefabs/ZSFX/sfx_gui_sell.prefab
 - Assets/Prefabs/ZSFX/sfx_gui_craftitem_forge.prefab
 - Assets/Sprites/HUD/cloud.png
-- Assets/Prefabs/LeftKnot.prefab
 - Assets/Prefabs/ZSFX/sfx_gui_inventory_close.prefab
+- Assets/Prefabs/LeftKnot.prefab
+- Assets/Prefabs/LabeledKeybind_HUD.prefab
 - Assets/Fonts/SourceSansPro-Bold.ttf
 - Assets/Prefabs/AugaBiomeFoundMessage.prefab
 - Assets/Prefabs/TabContent_Skills.prefab
@@ -552,17 +565,19 @@ Assets:
 - Assets/Fonts/Norsebold-RASTER-HINTED.asset
 - Assets/Prefabs/AugaPanelBase.prefab
 - Assets/Prefabs/ZSFX/sfx_gui_craftitem.prefab
+- Assets/Prefabs/LabeledSliderWithValue.prefab
 - Assets/Fonts/Norse-Old.asset
 - Assets/Fonts/Noto Sans CJK Regular SDF.asset
 - Assets/Fonts/SourceSansPro-SemiBoldItalic.ttf
+- Assets/Prefabs/MenuButton.prefab
 - Assets/Prefabs/AugaStoreScreen.prefab
 - Assets/Prefabs/ZSFX/sfx_gui_craftitem_workbench_end.prefab
 - Assets/Prefabs/ButtonSettings.prefab
-- Assets/Sprites/ArtPass/AugaToastPlate.png
 - Assets/Prefabs/MainMenu.prefab
 - Assets/Prefabs/ButtonDiamond.prefab
-- Assets/Prefabs/AugaChat.prefab
+- Assets/Prefabs/ChangeLog.prefab
 - Assets/Fonts/SourceSansPro-SemiBoldItalic-old.asset
+- Assets/Prefabs/LabeledCheckbox.prefab
 - Assets/Prefabs/BuildHudElement.prefab
 - Assets/Prefabs/TabContent_MessageLog.prefab
 - Assets/Prefabs/VR/LeftWristMountUI.prefab
@@ -571,6 +586,8 @@ Assets:
 - Assets/Fonts/SourceSansPro-Regular-old.asset
 - Assets/Prefabs/BuildHud.prefab
 - Assets/Fonts/Norsebold SDF.asset
+- Assets/Prefabs/AugaChat.prefab
+- Assets/Sprites/Container_Diamond.png
 - Assets/Prefabs/MainMenu/ServerListElement.prefab
 - Assets/Prefabs/TopLeftMessage.prefab
 - Assets/Sprites/Cursor.png
@@ -584,18 +601,19 @@ Assets:
 - Assets/Prefabs/ButtonSmall.prefab
 - Assets/Prefabs/Inventory_screen.prefab
 - Assets/Fonts/SourceHanSansCN-Bold SDF.asset
-- Assets/Sprites/ArtPass/AugaPortraitRing.png
+- Assets/Prefabs/MainMenu/StartGame.prefab
 - Assets/Prefabs/HotKeyElement.prefab
 - Assets/Prefabs/TabButton_PVP.prefab
+- Assets/Prefabs/LabeledSlider.prefab
+- Assets/Prefabs/ScrollBar.prefab
 - Assets/Prefabs/TabButton_Crafting.prefab
-- Assets/Prefabs/RightKnot.prefab
 - Assets/Sprites/Cursor2.png
+- Assets/Prefabs/RightKnot.prefab
 - Assets/Prefabs/TeleportStage.prefab
 - Assets/Prefabs/ZSFX/sfx_gui_moveitem.prefab
 - Assets/Prefabs/ZSFX/sfx_gui_craftitem_workbench.prefab
 - Assets/Prefabs/ButtonFancy.prefab
 - Assets/Prefabs/ZSFX/sfx_gui_inventory_open.prefab
-- Assets/Sprites/ArtPass/AugaListRowSelected.png
 - Assets/Prefabs/ZSFX/sfx_gui_select.prefab
 - Assets/Prefabs/ZSFX/sfx_gui_craftitem_cauldron_end.prefab
 - Assets/Sprites/TabIcons/RecyclingPanel.png
@@ -608,16 +626,20 @@ Assets:
 - Assets/Prefabs/SimpleTooltip.prefab
 - Assets/Prefabs/DividerLarge.prefab
 - Assets/Prefabs/ZSFX/sfx_gui_repairitem_forge.prefab
+- Assets/Prefabs/LabeledDropdown.prefab
 - Assets/Prefabs/AugaEnemyHud.prefab
 - Assets/Prefabs/HUD.prefab
 - Assets/Prefabs/AugaUnlockMessageBase.prefab
 - Assets/Prefabs/TabContent_Crafting.prefab
-- Assets/Sprites/ArtPass/AugaListRow.png
 - Assets/Prefabs/ZSFX/sfx_gui_biomefound.prefab
+- Assets/Sprites/MainMenu/status_no.png
 - Assets/Prefabs/ConfirmDialog.prefab
 - Assets/Prefabs/ZSFX/sfx_gui_craftitem_forge_end.prefab
 - Assets/Prefabs/InventoryTooltip.prefab
 - Assets/Sprites/Container_Square_A.png
+- Assets/Prefabs/MainMenu/NewCharacterPanel.prefab
 - Assets/Fonts/Norse SDF.asset
 - Assets/Prefabs/ZSFX/sfx_gui_button.prefab
+- Assets/Prefabs/MainMenu/CharacterSelectPortrait.prefab
+- Assets/Prefabs/LabeledKeybind.prefab
 Dependencies: []
